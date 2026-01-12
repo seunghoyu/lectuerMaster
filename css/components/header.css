@@ -1,0 +1,45 @@
+/**
+ * 헤더 컴포넌트 스타일
+ */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    flex: 1;
+}
+
+.menu-title-text {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.selected-count-in-header {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+.selected-count-in-header strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-background);
+    border-left: var(--border-width) solid var(--color-border);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.user-info .user-name {
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.user-info .user-id {
+    color: var(--color-text-secondary);
+}

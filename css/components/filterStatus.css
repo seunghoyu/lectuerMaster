@@ -1,0 +1,19 @@
+/**
+ * 필터 상태 표시 블록 스타일
+ */
+.filter-status-block {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: #bfdbfe;
+    border-radius: var(--border-radius-sm);
+    margin-right: var(--spacing-md);
+    flex: 0 0 auto;
+}
+
+.filter-status-text {
+    font-size: var(--font-size-sm);
+    color: #1e40af;
+    font-weight: 500;
+    white-space: nowrap;
+}

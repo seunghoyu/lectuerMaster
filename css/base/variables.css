@@ -1,0 +1,56 @@
+/**
+ * CSS 변수 정의
+ * ERP 시스템의 디자인 토큰
+ */
+:root {
+    /* 레이아웃 */
+    --sidebar-width-collapsed: 64px;
+    --sidebar-width-expanded: 240px;
+    
+    /* 색상 */
+    --color-background: #f9fafb;
+    --color-sidebar-background: #2d2d2d;
+    --color-sidebar-text: #e0e0e0;
+    --color-sidebar-hover: #404040;
+    --color-border: #e5e7eb;
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-primary: #714b67; /* Odoo Style Purple */
+    --color-white: #fff;
+    --color-table-hover: #f3f4f6;
+    --color-cell-selected: #f3e8ff;
+    --color-button-disabled: #f3f4f6;
+    --color-text-disabled: #9ca3af;
+    
+    /* 간격 */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 20px;
+    --spacing-xl: 24px;
+    
+    /* 타이포그래피 */
+    --font-size-xs: 11px;
+    --font-size-sm: 13px;
+    --font-size-base: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
+    --font-size-2xl: 20px;
+    
+    /* 전환 효과 */
+    --transition-fast: 0.1s;
+    --transition-base: 0.2s;
+    --transition-slow: 0.3s;
+    --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* 그림자 */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    /* 테두리 */
+    --border-radius-sm: 4px;
+    --border-radius-md: 6px;
+    --border-width: 1px;
+    --border-width-thick: 2px;
+}
+

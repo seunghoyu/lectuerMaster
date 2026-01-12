@@ -1,0 +1,117 @@
+/**
+ * 테이블 컴포넌트 스타일
+ */
+.table-container {
+    flex: 1;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--border-radius-sm);
+}
+
+.table-scroll-area {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    cursor: grab;
+}
+
+.table-scroll-area.active-drag {
+    cursor: grabbing;
+}
+
+.data-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--color-background);
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px var(--spacing-md);
+    border: var(--border-width) solid var(--color-border);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    height: 44px;
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-align: left;
+    border-bottom: var(--border-width-thick) solid var(--color-border);
+    position: relative;
+}
+
+.data-table tbody tr {
+    transition: background-color var(--transition-fast);
+    cursor: pointer;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--color-table-hover);
+}
+
+.data-table td.selected-cell {
+    background-color: #e5e7eb;
+    border-color: #9ca3af;
+    border-width: 1px;
+    position: relative;
+}
+
+/* 선택된 셀의 테두리를 더 명확하게 표시 (겹침 방지) */
+.data-table td.selected-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid #9ca3af;
+    pointer-events: none;
+}
+
+/* 키보드 포커스된 셀 스타일 */
+.data-table td.keyboard-focused {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+    z-index: 1;
+}
+
+.data-table td.keyboard-focused.selected-cell {
+    outline: 2px solid #3b82f6;
+    background-color: #dbeafe;
+}
+
+/* 정렬 유틸리티 */
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+/* 인당과금 컬럼 스타일 (인당과금 컬럼만 파란색) */
+.per-person-price-header {
+    background-color: #eff6ff !important;
+    border-left: 3px solid #3b82f6;
+}
+
+.per-person-price-cell {
+    background-color: #f0f9ff !important;
+    font-weight: 600;
+    color: #1e40af;
+    text-align: right;
+}

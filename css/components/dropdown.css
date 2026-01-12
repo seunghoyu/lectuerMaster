@@ -1,0 +1,29 @@
+/**
+ * 드롭다운 컴포넌트 스타일
+ */
+.dropdown-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-base);
+}
+
+.dropdown-menu.open {
+    max-height: 500px;
+}
+
+.dropdown-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.dropdown-toggle i {
+    transition: transform var(--transition-base);
+    margin-left: var(--spacing-sm);
+}
+
+.dropdown-toggle.active i {
+    transform: rotate(180deg);
+}
