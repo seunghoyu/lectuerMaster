@@ -33,12 +33,35 @@ export class ToolbarRenderer {
             </button>
         ` : '';
         
+        // 검색 입력 필드
+        const searchInputHtml = `
+            <div class="toolbar-search">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="강의명 또는 강의코드 검색..."
+                    autocomplete="off"
+                />
+                <button id="clearSearchBtn" class="btn-clear-search" style="display: none;" title="검색 초기화">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <button id="searchBtn" class="btn-search" title="검색">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+        `;
+        
         // 필터가 있을 때는 space-between, 없을 때는 flex-end
-        const toolbarClass = hasFilters ? 'toolbar toolbar-with-filter' : 'toolbar';
+        const toolbarClass = hasFilters ? 'toolbar toolbar-with-filter' : 'toolbar toolbar-with-search';
         
         return `
             <div class="${toolbarClass}">
-                ${hasFilters ? filterStatusHtml : ''}
+                <div class="toolbar-left">
+                    ${searchInputHtml}
+                    ${hasFilters ? filterStatusHtml : ''}
+                </div>
                 <div class="toolbar-right">
                     ${filterResetBtn}
                     <div id="pluginBarContainer"></div>

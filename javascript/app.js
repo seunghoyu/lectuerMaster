@@ -14,10 +14,12 @@ import { PluginBarRenderer } from './components/pluginBarRenderer.js';
 import { EditListNameModalRenderer } from './components/editListNameModalRenderer.js';
 import { AutomationModalRenderer } from './components/automationModalRenderer.js';
 import { RegisterByCodeModalRenderer } from './components/registerByCodeModalRenderer.js';
+import { CompareModalRenderer } from './components/compareModalRenderer.js';
 import { AutomationService } from './services/automationService.js';
 import { UserService } from './services/userService.js';
 import { FilterService } from './services/filterService.js';
 import { PriceParser } from './utils/priceParser.js';
+import { RechampService } from './services/rechampService.js';
 import { CheckboxHandler } from './handlers/checkboxHandler.js';
 import { CellSelectionHandler } from './handlers/cellSelectionHandler.js';
 import { DragScrollHandler } from './handlers/dragScrollHandler.js';
@@ -32,6 +34,7 @@ class LectureMasterApp {
     constructor() {
         this.lectureData = [];
         this.filteredLectureData = []; // 필터링된 데이터 (저장된 리스트 선택 시)
+        this.searchedData = null; // 검색된 데이터 (null이면 검색 안 함)
         this.currentPageNumber = 1;
         this.itemsPerPage = CONFIG.ITEMS_PER_PAGE;
         this.selectedLectures = new Set(); // 선택된 강의 코드 Set
@@ -39,6 +42,7 @@ class LectureMasterApp {
         this.targetListForAdd = null; // 강의 추가 대상 리스트 이름
         this.activeFilters = FilterService.initializeFilters(); // 활성 필터 상태
         this.currentListInfo = null; // 현재 로드된 리스트 정보 (계약유형, priceMap 등)
+        this.searchQuery = ''; // 검색어
         
         this.tableContainer = null;
         this.toolbarContainer = null;
@@ -73,8 +77,15 @@ class LectureMasterApp {
             // 사용자 데이터 먼저 로드 (캐시에 저장)
             await UserService.getUsers();
             
+            // Rechamp 데이터 로드 (settlementType 매핑용)
+            await RechampService.loadRechampData();
+            
             const rawData = await CsvService.loadCsvData();
-            this.lectureData = DataService.sortData(rawData);
+            
+            // settlementType 매핑 추가
+            const dataWithSettlement = DataService.mapSettlementType(rawData);
+            
+            this.lectureData = DataService.sortData(dataWithSettlement);
             this.filteredLectureData = [...this.lectureData];
             
             console.log(`데이터 로드 완료: 총 ${this.lectureData.length}개 항목`);
@@ -367,6 +378,134 @@ class LectureMasterApp {
                 this.renderToolbar();
             });
         }
+        
+        // 검색 입력 필드
+        this.bindSearchEvents();
+    }
+    
+    /**
+     * 검색 이벤트를 바인딩합니다.
+     */
+    bindSearchEvents() {
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const searchBtn = document.getElementById('searchBtn');
+        
+        // 검색 실행 함수
+        const executeSearch = () => {
+            if (searchInput) {
+                const query = searchInput.value.trim();
+                console.log('검색 실행 함수 호출, 검색어:', query);
+                this.searchQuery = query;
+                
+                // 검색 초기화 버튼 표시/숨김
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = query ? 'flex' : 'none';
+                }
+                
+                this.applySearch();
+            } else {
+                console.error('검색 입력 필드를 찾을 수 없습니다.');
+            }
+        };
+        
+        if (searchInput) {
+            // 기존 검색어 복원
+            if (this.searchQuery) {
+                searchInput.value = this.searchQuery;
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = 'flex';
+                }
+            }
+            
+            // 입력 이벤트 (실시간 검색은 제거하고 버튼/엔터로만 검색)
+            // 실시간 검색을 원하면 아래 주석을 해제하세요
+            /*
+            let searchTimeout;
+            searchInput.addEventListener('input', (event) => {
+                const query = event.target.value.trim();
+                this.searchQuery = query;
+                
+                // 검색 초기화 버튼 표시/숨김
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = query ? 'flex' : 'none';
+                }
+                
+                // 디바운싱 (300ms 후 검색 실행)
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.applySearch();
+                }, 300);
+            });
+            */
+            
+            // 입력 시 검색 초기화 버튼만 표시/숨김
+            searchInput.addEventListener('input', (event) => {
+                const query = event.target.value.trim();
+                
+                // 검색 초기화 버튼 표시/숨김
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = query ? 'flex' : 'none';
+                }
+            });
+            
+            // Enter 키로 즉시 검색
+            searchInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    executeSearch();
+                }
+            });
+        }
+        
+        // 검색 실행 버튼
+        if (searchBtn) {
+            searchBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                executeSearch();
+            });
+        }
+        
+        // 검색 초기화 버튼
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', () => {
+                if (searchInput) {
+                    searchInput.value = '';
+                    this.searchQuery = '';
+                    this.searchedData = null;
+                    clearSearchBtn.style.display = 'none';
+                    this.applySearch();
+                    searchInput.focus();
+                }
+            });
+        }
+    }
+    
+    /**
+     * 검색을 적용합니다.
+     */
+    applySearch() {
+        // 현재 표시할 데이터 (필터링된 데이터 또는 전체 데이터)
+        let baseData = this.filteredLectureData.length > 0 
+            ? this.filteredLectureData 
+            : this.lectureData;
+        
+        // 검색 적용
+        if (this.searchQuery && this.searchQuery.trim() !== '') {
+            // 검색어가 있으면 검색 실행
+            this.searchedData = SearchService.search(baseData, this.searchQuery);
+            console.log('검색 실행:', this.searchQuery, '기준 데이터:', baseData.length, '개, 결과:', this.searchedData.length, '개');
+        } else {
+            // 검색어가 없으면 null로 설정
+            this.searchedData = null;
+            console.log('검색 초기화');
+        }
+        
+        // 첫 페이지로 이동
+        this.currentPageNumber = 1;
+        
+        // 테이블 다시 렌더링
+        this.renderTable(this.currentPageNumber);
     }
     
     /**
@@ -387,6 +526,18 @@ class LectureMasterApp {
     resetAllFilters() {
         // 모든 필터 제거
         this.activeFilters = FilterService.clearAllFilters();
+        
+        // 검색어도 초기화
+        this.searchQuery = '';
+        this.searchedData = null;
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        if (clearSearchBtn) {
+            clearSearchBtn.style.display = 'none';
+        }
         
         // 필터 아이콘 상태 업데이트
         const filterIcons = document.querySelectorAll('.filter-icon-container');
@@ -413,13 +564,26 @@ class LectureMasterApp {
             return;
         }
         
-        // 현재 표시할 데이터 (필터링된 데이터 또는 전체 데이터)
-        let dataToDisplay = this.filteredLectureData.length > 0 
-            ? this.filteredLectureData 
-            : this.lectureData;
+        // 현재 표시할 데이터 결정 (검색된 데이터 > 필터링된 데이터 > 전체 데이터)
+        let dataToDisplay;
+        if (this.searchedData !== null) {
+            // 검색된 데이터가 있으면 사용
+            dataToDisplay = this.searchedData;
+            console.log('검색된 데이터 사용:', dataToDisplay.length, '개');
+        } else {
+            // 검색된 데이터가 없으면 필터링된 데이터 또는 전체 데이터
+            dataToDisplay = this.filteredLectureData.length > 0 
+                ? this.filteredLectureData 
+                : this.lectureData;
+        }
         
         // 필터 적용
+        const beforeFilterCount = dataToDisplay.length;
         dataToDisplay = FilterService.filterData(dataToDisplay, this.activeFilters);
+        const afterFilterCount = dataToDisplay.length;
+        if (beforeFilterCount !== afterFilterCount) {
+            console.log('필터 적용:', beforeFilterCount, '개 ->', afterFilterCount, '개');
+        }
         
         // 현재 페이지 데이터 가져오기
         const startIndex = (pageNumber - 1) * this.itemsPerPage;
@@ -434,6 +598,8 @@ class LectureMasterApp {
             dataToDisplay.length, 
             this.itemsPerPage
         );
+        
+        console.log('테이블 렌더링:', '전체', dataToDisplay.length, '개, 현재 페이지', pageNumber, '/', totalPages, ', 페이지당', pageData.length, '개');
         
         // 테이블 렌더링 (필터 아이콘 포함, 리스트 정보 포함)
         TableRenderer.renderToDOM(this.tableContainer, pageData, startIndex, {}, this.currentListInfo);
@@ -518,6 +684,104 @@ class LectureMasterApp {
             () => this.onSelectionChange()
         );
         this.checkboxHandler.bindEvents();
+        
+        // 비교 버튼 이벤트
+        this.bindCompareEvents();
+    }
+    
+    /**
+     * 비교 버튼 이벤트를 바인딩합니다.
+     */
+    bindCompareEvents() {
+        const compareButtons = document.querySelectorAll('.btn-compare');
+        compareButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const lectureCode = btn.dataset.lectureCode;
+                const b2cCode = btn.dataset.b2cCode;
+                this.showCompareModal(lectureCode, b2cCode);
+            });
+        });
+    }
+    
+    /**
+     * 비교 모달을 표시합니다.
+     * @param {string} lectureCode - B2B 강의코드
+     * @param {string} b2cCode - B2C강의코드
+     */
+    async showCompareModal(lectureCode, b2cCode) {
+        // B2B 데이터 찾기
+        const b2bData = this.lectureData.find(item => item['강의코드'] === lectureCode);
+        
+        // Rechamp 데이터 찾기
+        let rechampData = null;
+        if (b2cCode) {
+            rechampData = RechampService.getRechampDataByB2CCode(b2cCode);
+        }
+        
+        // 모달 렌더링
+        const modalContainer = document.body;
+        CompareModalRenderer.renderToDOM(modalContainer, b2bData, rechampData);
+        CompareModalRenderer.showModal();
+        
+        // 모달 이벤트 바인딩
+        this.bindCompareModalEvents();
+    }
+    
+    /**
+     * 비교 모달 이벤트를 바인딩합니다.
+     */
+    bindCompareModalEvents() {
+        const closeBtn = document.getElementById('closeCompareModal');
+        const closeBtn2 = document.getElementById('closeCompareModalBtn');
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.closeCompareModal();
+            });
+        }
+        
+        if (closeBtn2) {
+            closeBtn2.addEventListener('click', () => {
+                this.closeCompareModal();
+            });
+        }
+        
+        // 모달 외부 클릭으로 닫기
+        const overlay = document.getElementById('compareModalOverlay');
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    this.closeCompareModal();
+                }
+            });
+        }
+        
+        // ESC 키로 닫기
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('compareModalOverlay');
+                if (overlay && overlay.classList.contains('active')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.closeCompareModal();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+    
+    /**
+     * 비교 모달을 닫습니다.
+     */
+    closeCompareModal() {
+        CompareModalRenderer.hideModal();
+        setTimeout(() => {
+            CompareModalRenderer.removeModal();
+            // body overflow 확실히 복원
+            document.body.style.overflow = '';
+        }, 300);
     }
     
     /**
@@ -553,10 +817,17 @@ class LectureMasterApp {
      * @param {HTMLElement} iconContainer - 필터 아이콘 컨테이너
      */
     showFilterDropdown(columnKey, iconContainer) {
-        // 현재 표시할 데이터 (필터링된 데이터 또는 전체 데이터)
-        let dataToDisplay = this.filteredLectureData.length > 0 
-            ? this.filteredLectureData 
-            : this.lectureData;
+        // 현재 표시할 데이터 결정 (검색된 데이터 > 필터링된 데이터 > 전체 데이터)
+        let dataToDisplay;
+        if (this.searchedData !== null) {
+            // 검색된 데이터가 있으면 사용
+            dataToDisplay = this.searchedData;
+        } else {
+            // 검색된 데이터가 없으면 필터링된 데이터 또는 전체 데이터
+            dataToDisplay = this.filteredLectureData.length > 0 
+                ? this.filteredLectureData 
+                : this.lectureData;
+        }
         
         // 현재 필터가 적용된 데이터 기준으로 고윳값 추출 (연쇄 필터링)
         dataToDisplay = FilterService.filterData(dataToDisplay, this.activeFilters);
@@ -1256,6 +1527,10 @@ class LectureMasterApp {
         // 필터 초기화 (공유 리스트 로드 시)
         this.activeFilters = FilterService.clearAllFilters();
         
+        // 검색어 초기화
+        this.searchQuery = '';
+        this.searchedData = null;
+        
         const selectedCount = this.selectedLectures.size;
         HeaderRenderer.updateMenuNameAndCount(`${sharedList.listName} (공유)`, selectedCount);
         
@@ -1483,6 +1758,9 @@ class LectureMasterApp {
         // 필터 초기화 (저장된 리스트 로드 시)
         this.activeFilters = FilterService.clearAllFilters();
         
+        // 검색어 초기화
+        this.searchQuery = '';
+        
         // 헤더 업데이트
         const selectedCount = this.selectedLectures.size;
         HeaderRenderer.updateMenuNameAndCount(listName, selectedCount);
@@ -1648,6 +1926,10 @@ class LectureMasterApp {
         
         // 필터 초기화 (B2B 강의리스트로 돌아갈 때)
         this.activeFilters = FilterService.clearAllFilters();
+        
+        // 검색어 초기화
+        this.searchQuery = '';
+        this.searchedData = null;
         
         const selectedCount = this.selectedLectures.size;
         HeaderRenderer.updateMenuNameAndCount('B2B 강의리스트', selectedCount);

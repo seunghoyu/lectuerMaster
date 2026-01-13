@@ -10,8 +10,17 @@
     gap: var(--spacing-md);
 }
 
-.toolbar-with-filter {
+.toolbar-with-filter,
+.toolbar-with-search {
     justify-content: space-between;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+    min-width: 0;
 }
 
 .toolbar-right {
@@ -84,4 +93,88 @@
 .btn-filter-reset:hover {
     background: var(--color-table-hover);
     border-color: #9ca3af;
+}
+
+/* 검색 입력 필드 스타일 */
+.toolbar-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 80px 8px 36px;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    background: var(--color-white);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    transition: var(--transition-base);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #6b7280;
+    box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+}
+
+.search-input::placeholder {
+    color: var(--color-text-disabled);
+}
+
+.btn-clear-search {
+    position: absolute;
+    right: 40px;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-base);
+    z-index: 1;
+}
+
+.btn-clear-search:hover {
+    background: var(--color-table-hover);
+    color: var(--color-text-primary);
+}
+
+.btn-search {
+    position: absolute;
+    right: 8px;
+    padding: 6px 10px;
+    background: #6b7280;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    color: var(--color-white);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-base);
+    z-index: 1;
+}
+
+.btn-search:hover {
+    background: #4b5563;
+}
+
+.btn-search:active {
+    background: #374151;
 }

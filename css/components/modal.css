@@ -19,6 +19,13 @@
     pointer-events: none;
 }
 
+/* 비교 모달은 배경이 보이도록 - modal.css에서 기본 스타일 오버라이드 */
+.compare-modal-overlay {
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(1px) !important;
+    -webkit-backdrop-filter: blur(1px) !important;
+}
+
 .modal-overlay.active {
     opacity: 1;
     visibility: visible;

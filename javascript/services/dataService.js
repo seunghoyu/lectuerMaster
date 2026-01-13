@@ -1,9 +1,27 @@
 import { CONFIG } from '../config/constants.js';
+import { RechampService } from './rechampService.js';
 
 /**
  * 데이터 정렬 및 처리 서비스
  */
 export class DataService {
+    /**
+     * CSV 데이터에 settlementType을 매핑합니다.
+     * @param {Array<Object>} data - CSV 데이터 배열
+     * @returns {Array<Object>} settlementType이 추가된 데이터 배열
+     */
+    static mapSettlementType(data) {
+        return data.map(item => {
+            const b2cCode = item['B2C강의코드'];
+            const settlementType = RechampService.getSettlementType(b2cCode);
+            
+            // 정산여부 필드 추가
+            return {
+                ...item,
+                '정산여부': settlementType || ''
+            };
+        });
+    }
     /**
      * 데이터를 기본 정렬 기준에 따라 정렬합니다.
      * @param {Array<Object>} data - 정렬할 데이터 배열

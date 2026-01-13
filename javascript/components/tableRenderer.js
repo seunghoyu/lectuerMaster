@@ -47,8 +47,15 @@ export class TableRenderer {
             const isFilterable = this.isFilterableColumn(column.key);
             const filterIcon = isFilterable ? FilterRenderer.renderFilterIcon(column.key) : '';
             
+            // 정산여부 컬럼에 특별한 클래스 추가
+            const isSettlementColumn = column.key === '정산여부';
+            const columnClass = [
+                isFilterable ? 'filterable-column' : '',
+                isSettlementColumn ? 'settlement-column' : ''
+            ].filter(Boolean).join(' ');
+            
             return `
-                <th class="${isFilterable ? 'filterable-column' : ''}">
+                <th class="${columnClass}">
                     <div class="th-content">
                         <span class="th-label">${column.label}</span>
                         ${filterIcon}
@@ -107,7 +114,10 @@ export class TableRenderer {
     static renderTableRow(item, rowNumber, listInfo = null) {
         let cells = CONFIG.TABLE_COLUMNS.map(column => {
             if (column.type === 'checkbox') {
-                return `<td><input type="checkbox" class="row-checkbox" data-lecture-code="${item['강의코드'] || ''}"></td>`;
+                const compareBtn = `<button class="btn-compare" data-lecture-code="${this.escapeHtml(item['강의코드'] || '')}" data-b2c-code="${this.escapeHtml(item['B2C강의코드'] || '')}" title="데이터 비교">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>`;
+                return `<td><input type="checkbox" class="row-checkbox" data-lecture-code="${this.escapeHtml(item['강의코드'] || '')}">${compareBtn}</td>`;
             }
             
             if (column.key === 'index') {
@@ -122,8 +132,13 @@ export class TableRenderer {
             }
             
             const alignClass = column.align === 'left' ? 'text-left' : '';
+            const isSettlementColumn = column.key === '정산여부';
+            const cellClass = [
+                alignClass,
+                isSettlementColumn ? 'settlement-cell' : ''
+            ].filter(Boolean).join(' ');
             
-            return `<td class="${alignClass}">${cellValue}</td>`;
+            return `<td class="${cellClass}">${cellValue}</td>`;
         }).join('');
         
         // 리스트 정보가 있을 때 인당과금 금액 셀 추가 (계약유형 셀 제거)
@@ -135,6 +150,17 @@ export class TableRenderer {
         }
         
         return `<tr>${cells}</tr>`;
+    }
+    
+    /**
+     * HTML 이스케이프
+     * @param {string} text - 이스케이프할 텍스트
+     * @returns {string} 이스케이프된 텍스트
+     */
+    static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     /**

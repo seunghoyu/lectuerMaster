@@ -21,6 +21,7 @@
 @import url('./components/dashboard.css');
 @import url('./components/filter.css');
 @import url('./components/filterStatus.css');
+@import url('./components/compareModal.css');
 
 /* --- App Container --- */
 #app {

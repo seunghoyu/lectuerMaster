@@ -115,3 +115,47 @@
     color: #1e40af;
     text-align: right;
 }
+
+/* 정산여부 컬럼 스타일 (구분되는 색상, 강조하지 않음) */
+.settlement-column {
+    background-color: #f9fafb !important;
+    border-left: 2px solid #d1d5db;
+}
+
+.settlement-cell {
+    background-color: #f9fafb !important;
+    color: #6b7280;
+}
+
+/* 비교 버튼 스타일 */
+.data-table td:has(.row-checkbox) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 10px var(--spacing-md);
+}
+
+.btn-compare {
+    padding: 4px 6px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-base);
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.data-table tbody tr:hover .btn-compare {
+    opacity: 1;
+}
+
+.btn-compare:hover {
+    background: var(--color-table-hover);
+    color: var(--color-text-primary);
+}
