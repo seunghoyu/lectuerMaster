@@ -1,0 +1,163 @@
+/**
+ * 비교 모달 스타일 (detailsModal.css에서 리팩토링)
+ */
+.comparison-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-base), visibility var(--transition-base);
+}
+
+.comparison-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.comparison-modal-container {
+    background: var(--color-white);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    width: 95%;
+    max-width: 1200px; /* 더 넓은 비교 화면 */
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95);
+    transition: transform var(--transition-base);
+}
+
+.comparison-modal-overlay.active .comparison-modal-container {
+    transform: scale(1);
+}
+
+.comparison-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    flex-shrink: 0; /* 내용이 많아도 헤더 크기 유지 */
+}
+
+.comparison-modal-header h2 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.comparison-modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.comparison-modal-close:hover {
+    color: var(--color-text-primary);
+}
+
+.comparison-modal-body {
+    flex: 1; /* 남은 공간 모두 차지 */
+    display: flex; /* 내부 패널을 위한 flex */
+    overflow: hidden; /* 각 패널에서 스크롤 관리 */
+    padding: var(--spacing-lg);
+}
+
+.comparison-split-view {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2분할 */
+    gap: var(--spacing-lg);
+    width: 100%;
+    height: 100%;
+}
+
+.comparison-panel {
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* 내부 스크롤 */
+}
+
+.comparison-panel-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-background);
+    flex-shrink: 0;
+}
+
+.comparison-data-grid {
+    flex: 1;
+    overflow-y: auto;
+    background-color: var(--color-white);
+}
+
+.comparison-item {
+    display: grid;
+    grid-template-columns: 180px 1fr; /* Label column and Value column */
+}
+
+.comparison-label,
+.comparison-value {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--font-size-sm);
+}
+
+.comparison-label {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background-color: var(--color-background);
+    text-align: right;
+    border-right: 1px solid var(--color-border);
+}
+
+.comparison-value {
+    color: var(--color-text-primary);
+    word-break: break-all;
+}
+
+/* Zebra-striping for readability */
+.comparison-data-grid > .comparison-item:nth-child(odd) > .comparison-label {
+    background-color: #f8f8f8;
+}
+.comparison-data-grid > .comparison-item:nth-child(odd) > .comparison-value {
+    background-color: #fdfdfd;
+}
+
+.comparison-empty {
+    padding: var(--spacing-lg);
+    text-align: center;
+    color: var(--color-text-disabled);
+    font-style: italic;
+}
+
+/* Original details icon, retained for table */
+.details-icon {
+    cursor: pointer;
+    color: var(--color-primary);
+    transition: color var(--transition-fast);
+}
+
+.details-icon:hover {
+    color: #a06faa; /* Odoo Style Purple Hover */
+}

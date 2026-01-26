@@ -8,7 +8,18 @@
     max-height: 0;
     overflow: hidden;
     transition: max-height var(--transition-base);
+    font-size: var(--font-size-base);
 }
+
+.dropdown-menu li {
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+}
+
+.dropdown-menu li:hover {
+    background-color: var(--color-table-hover);
+}
+
 
 .dropdown-menu.open {
     max-height: 500px;
@@ -17,6 +28,7 @@
 .dropdown-toggle {
     cursor: pointer;
     user-select: none;
+    font-size: var(--font-size-base);
 }
 
 .dropdown-toggle i {
