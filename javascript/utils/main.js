@@ -3,14 +3,19 @@ let currentPage = 1;
 const itemsPerPage = 20;
 
 document.addEventListener('DOMContentLoaded', function() {
-    loadCSVData();
+    loadJsonData();
 });
 
-function loadCSVData() {
-    fetch('data/b2b_lectureList.csv')
-        .then(response => response.text())
-        .then(text => {
-            allData = parseCSV(text);
+function loadJsonData() {
+    fetch('data/b2b_lectureList.json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`JSON 파일을 불러올 수 없습니다. (Status: ${response.status})`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            allData = data;
             
             // 기본 정렬: 강의생성일 최신순 (내림차순)
             allData.sort((a, b) => {
@@ -21,51 +26,7 @@ function loadCSVData() {
 
             renderTable(1);
         })
-        .catch(error => console.error('Error loading CSV:', error));
-}
-
-function parseCSV(text) {
-    const lines = text.replace(/\r/g, '').trim().split('\n');
-    const headers = parseCSVLine(lines[0]);
-    const data = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        const currentLine = parseCSVLine(lines[i]);
-        if (currentLine.length === headers.length) {
-            const row = {};
-            for (let j = 0; j < headers.length; j++) {
-                row[headers[j]] = currentLine[j];
-            }
-            data.push(row);
-        }
-    }
-    return data;
-}
-
-function parseCSVLine(line) {
-    const columns = [];
-    let currentVal = '';
-    let insideQuote = false;
-
-    for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-
-        if (char === '"') {
-            if (insideQuote && line[i + 1] === '"') {
-                currentVal += '"';
-                i++;
-            } else {
-                insideQuote = !insideQuote;
-            }
-        } else if (char === ',' && !insideQuote) {
-            columns.push(currentVal);
-            currentVal = '';
-        } else {
-            currentVal += char;
-        }
-    }
-    columns.push(currentVal);
-    return columns;
+        .catch(error => console.error('Error loading JSON:', error));
 }
 
 function renderTable(page) {

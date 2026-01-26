@@ -6,8 +6,8 @@ import { RechampService } from './rechampService.js';
  */
 export class DataService {
     /**
-     * CSV 데이터에 settlementType을 매핑합니다.
-     * @param {Array<Object>} data - CSV 데이터 배열
+     * 강의 데이터에 settlementType을 매핑합니다.
+     * @param {Array<Object>} data - 강의 데이터 배열 (JSON 또는 CSV에서 로드)
      * @returns {Array<Object>} settlementType이 추가된 데이터 배열
      */
     static mapSettlementType(data) {
@@ -24,36 +24,61 @@ export class DataService {
     }
     /**
      * 데이터를 기본 정렬 기준에 따라 정렬합니다.
+     * 정렬 순서: 강의생성일(최신순) → 사업부코드 → 카테고리 → 강의명
      * @param {Array<Object>} data - 정렬할 데이터 배열
      * @returns {Array<Object>} 정렬된 데이터 배열
      */
     static sortData(data) {
         const sortedData = [...data];
-        const sortField = CONFIG.DEFAULT_SORT_FIELD;
-        const sortOrder = CONFIG.DEFAULT_SORT_ORDER;
         
         sortedData.sort((a, b) => {
-            const valueA = a[sortField];
-            const valueB = b[sortField];
+            // 1순위: 강의생성일 (최신순, 내림차순)
+            const dateA = a['강의생성일'];
+            const dateB = b['강의생성일'];
             
-            // 날짜 필드인 경우 Date 객체로 변환하여 비교
-            if (sortField === '강의생성일') {
-                const dateA = new Date(valueA);
-                const dateB = new Date(valueB);
+            if (dateA && dateB) {
+                const dateObjA = new Date(dateA);
+                const dateObjB = new Date(dateB);
                 
-                if (sortOrder === 'desc') {
-                    return dateB - dateA;
+                // 유효한 날짜인지 확인
+                if (!isNaN(dateObjA.getTime()) && !isNaN(dateObjB.getTime())) {
+                    const dateCompare = dateObjB.getTime() - dateObjA.getTime(); // 내림차순 (최신순)
+                    if (dateCompare !== 0) {
+                        return dateCompare;
+                    }
                 } else {
-                    return dateA - dateB;
+                    // 날짜 파싱 실패 시 문자열 비교
+                    const dateStrCompare = String(dateB).localeCompare(String(dateA), 'ko');
+                    if (dateStrCompare !== 0) {
+                        return dateStrCompare;
+                    }
                 }
+            } else if (dateA && !dateB) {
+                return -1; // dateA가 있으면 앞으로
+            } else if (!dateA && dateB) {
+                return 1; // dateB가 있으면 앞으로
             }
             
-            // 문자열 필드인 경우
-            if (sortOrder === 'desc') {
-                return valueB.localeCompare(valueA);
-            } else {
-                return valueA.localeCompare(valueB);
+            // 2순위: 사업부코드
+            const deptA = String(a['사업부코드'] || '').trim();
+            const deptB = String(b['사업부코드'] || '').trim();
+            const deptCompare = deptA.localeCompare(deptB, 'ko');
+            if (deptCompare !== 0) {
+                return deptCompare;
             }
+            
+            // 3순위: 카테고리
+            const categoryA = String(a['카테고리'] || '').trim();
+            const categoryB = String(b['카테고리'] || '').trim();
+            const categoryCompare = categoryA.localeCompare(categoryB, 'ko');
+            if (categoryCompare !== 0) {
+                return categoryCompare;
+            }
+            
+            // 4순위: 강의명
+            const titleA = String(a['강의명'] || '').trim();
+            const titleB = String(b['강의명'] || '').trim();
+            return titleA.localeCompare(titleB, 'ko');
         });
         
         return sortedData;

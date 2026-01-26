@@ -38,28 +38,32 @@ createApp({
 
         // --- 4. 메서드 (Methods) ---
         /**
-         * CSV 파일을 비동기적으로 로드하고 파싱하여 테이블 데이터를 업데이트합니다.
+         * JSON 파일을 비동기적으로 로드하여 테이블 데이터를 업데이트합니다.
          */
-        const loadCsvData = async () => {
+        const loadJsonData = async () => {
             try {
-                console.log('CSV 데이터 로딩 시작...');
-                const response = await fetch('./data/b2b_lectureList.csv');
+                console.log('JSON 데이터 로딩 시작...');
+                const response = await fetch('./data/b2b_lectureList.json');
                 
                 if (!response.ok) {
                     throw new Error(`파일을 찾을 수 없습니다. (Status: ${response.status})`);
                 }
                 
-                const text = await response.text();
-                // CsvParser 유틸리티를 사용하여 파싱
-                const data = CsvParser.parse(text);
+                const data = await response.json();
                 
-                tableHeaders.value = data.headers;
-                tableRows.value = data.rows;
-                resetPagination(); // 새 데이터 로드 후 페이지네이션을 1페이지로 초기화
-                
-                console.log(`데이터 로드 완료: 총 ${tableRows.value.length}개 항목`);
+                // JSON 데이터는 이미 배열 형태이므로 직접 사용
+                if (Array.isArray(data) && data.length > 0) {
+                    // 헤더는 첫 번째 항목의 키에서 가져오거나 테이블 렌더러에서 처리
+                    tableHeaders.value = Object.keys(data[0]);
+                    tableRows.value = data;
+                    resetPagination(); // 새 데이터 로드 후 페이지네이션을 1페이지로 초기화
+                    
+                    console.log(`JSON 데이터 로드 완료: 총 ${tableRows.value.length}개 항목`);
+                } else {
+                    throw new Error('JSON 데이터 형식이 올바르지 않습니다.');
+                }
             } catch (error) {
-                console.error('CSV 로드 실패:', error);
+                console.error('JSON 로드 실패:', error);
                 alert('데이터 로드 중 오류가 발생했습니다.\n' + error.message + '\n\n개발자 도구(F12)의 콘솔(Console) 탭을 확인해주세요.');
             }
         };
@@ -73,7 +77,7 @@ createApp({
             if (name === 'B2B 강의리스트') {
                 // 데이터가 아직 로드되지 않았을 경우에만 로드
                 if (tableRows.value.length === 0) {
-                    loadCsvData();
+                    loadJsonData();
                 }
             } else {
                 // 다른 메뉴 선택 시 테이블 데이터 초기화

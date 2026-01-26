@@ -18,6 +18,7 @@ export class CsvParser {
         const headers = this.parseLine(lines[0]);
         const data = [];
         
+        let errorCount = 0;
         for (let i = 1; i < lines.length; i++) {
             const currentLine = this.parseLine(lines[i]);
             
@@ -28,6 +29,29 @@ export class CsvParser {
                     row[headers[j]] = currentLine[j];
                 }
                 data.push(row);
+            } else {
+                errorCount++;
+                // 처음 5개 오류만 로그 출력
+                if (errorCount <= 5) {
+                    console.warn(`CSV 파싱 경고 (Line ${i + 1}): 컬럼 수 불일치 (헤더: ${headers.length}, 데이터: ${currentLine.length})`);
+                    console.warn(`  헤더:`, headers);
+                    console.warn(`  데이터:`, currentLine);
+                }
+            }
+        }
+        
+        if (errorCount > 0) {
+            console.warn(`CSV 파싱 완료: 총 ${errorCount}개 행이 컬럼 수 불일치로 제외되었습니다.`);
+        }
+        
+        // 파싱 결과 검증 (첫 번째 항목 확인)
+        if (data.length > 0) {
+            const firstItem = data[0];
+            if (!firstItem['강의명'] || !firstItem['카테고리']) {
+                console.warn('CSV 파싱 검증 경고: 첫 번째 항목의 필수 필드 확인');
+                console.warn('  강의명:', firstItem['강의명']);
+                console.warn('  카테고리:', firstItem['카테고리']);
+                console.warn('  전체 키:', Object.keys(firstItem));
             }
         }
         

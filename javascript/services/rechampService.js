@@ -18,7 +18,7 @@ export class RechampService {
         }
 
         try {
-            const response = await fetch('data/rechamp_lectureList.json');
+            const response = await fetch('data/rechamp_lectureList_new.json');
             
             if (!response.ok) {
                 throw new Error(`Rechamp JSON 파일을 불러올 수 없습니다. (Status: ${response.status})`);
@@ -82,14 +82,14 @@ export class RechampService {
      * @param {string|number} b2cCode - B2C강의코드
      * @returns {Object|null} Rechamp 데이터 또는 null
      */
-    static getRechampDataByB2CCode(b2cCode) {
+    static getAllRechampDataByB2CCode(b2cCode) {
         if (!b2cCode || b2cCode === '') {
-            return null;
+            return [];
         }
 
-        // 데이터가 아직 로드되지 않은 경우 null 반환
+        // 데이터가 아직 로드되지 않은 경우 빈 배열 반환
         if (!this.rechampData || !Array.isArray(this.rechampData)) {
-            return null;
+            return [];
         }
 
         // B2C강의코드를 숫자로 변환
@@ -99,18 +99,18 @@ export class RechampService {
 
         // NaN 체크
         if (isNaN(code)) {
-            return null;
+            return [];
         }
 
-        // lectureCode로 검색
-        const found = this.rechampData.find(item => {
+        // lectureCode로 모든 일치 항목 검색
+        const found = this.rechampData.filter(item => {
             const itemCode = typeof item.lectureCode === 'string' 
                 ? parseInt(item.lectureCode, 10) 
                 : item.lectureCode;
             return itemCode === code;
         });
 
-        return found || null;
+        return found;
     }
 
     /**
