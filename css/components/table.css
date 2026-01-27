@@ -1,0 +1,413 @@
+/**
+ * 테이블 컴포넌트 스타일
+ */
+.table-container {
+    flex: 1;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--border-radius-sm);
+}
+
+.table-scroll-area {
+    flex: 1;
+    overflow-x: auto; /* Keep horizontal scroll if table is wide */
+    overflow-y: auto; /* Enable vertical scroll */
+    position: relative;
+    cursor: grab;
+    max-height: calc(100vh - 200px); /* Adjust this value as needed based on header/footer/padding */
+}
+
+.table-scroll-area.active-drag {
+    cursor: grabbing;
+}
+
+.data-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--color-background);
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px var(--spacing-md);
+    border: var(--border-width) solid var(--color-border);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    height: 44px;
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-align: left;
+    border-bottom: var(--border-width-thick) solid var(--color-border);
+    position: relative;
+}
+
+.data-table tbody tr {
+    transition: background-color var(--transition-fast);
+    cursor: pointer;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--color-table-hover);
+}
+
+.data-table td.selected-cell {
+    background-color: #e5e7eb;
+    border-color: #9ca3af;
+    border-width: 1px;
+    position: relative;
+}
+
+/* 선택된 셀의 테두리를 더 명확하게 표시 (겹침 방지) */
+.data-table td.selected-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid #9ca3af;
+    pointer-events: none;
+}
+
+/* 키보드 포커스된 셀 스타일 */
+.data-table td.keyboard-focused {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+    z-index: 1;
+}
+
+.data-table td.keyboard-focused.selected-cell {
+    outline: 2px solid #3b82f6;
+    background-color: #dbeafe;
+}
+
+/* 정렬 유틸리티 */
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+/* 인당과금 컬럼 스타일 (인당과금 컬럼만 파란색) */
+.per-person-price-header {
+    background-color: #eff6ff !important;
+    border-left: 3px solid #3b82f6;
+}
+
+.per-person-price-cell {
+    background-color: #f0f9ff !important;
+    font-weight: 600;
+    color: #1e40af;
+    text-align: right;
+}
+
+/* 정산여부 컬럼 스타일 (구분되는 색상, 강조하지 않음) */
+.settlement-column {
+    background-color: #f9fafb !important;
+    border-left: 2px solid #d1d5db;
+}
+
+.settlement-cell {
+    background-color: #f9fafb !important;
+    color: #6b7280;
+}
+
+/* ISBN 컬럼 스타일 (교재 정보) */
+.isbn-column {
+    background-color: #f5f3ff !important; /* Light Purple */
+    color: #5b21b6; /* Darker Purple */
+    font-weight: 500;
+}
+
+.book-title-header,
+.sap-code-header {
+    background-color: #f5f3ff !important;
+    color: #5b21b6;
+    font-weight: 500;
+}
+
+.book-title-cell,
+.sap-code-cell {
+    background-color: #faf9ff;
+    font-size: 13px;
+}
+
+/* 비교 버튼 스타일 */
+.data-table td:has(.row-checkbox) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 10px var(--spacing-md);
+}
+
+.btn-compare {
+    padding: 4px 6px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-base);
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.data-table tbody tr:hover .btn-compare {
+    opacity: 1;
+}
+
+.btn-compare:hover {
+    background: var(--color-table-hover);
+    color: var(--color-text-primary);
+}
+
+/* 제외된 강의 리스트 테이블 스타일 */
+.table-container.excluded .data-table thead {
+    background-color: #f3f4f6; /* 옅은 회색 배경 */
+}
+
+.table-container.excluded .data-table th {
+    color: #9ca3af; /* 옅은 텍스트 색상 */
+}
+
+.table-container.excluded .data-table tbody tr {
+    background-color: #f9fafb; /* 기본 행 배경색 */
+}
+
+.table-container.excluded .data-table tbody tr:hover {
+    background-color: #f0f1f3; /* 호버 시 약간 더 어둡게 */
+}
+
+.table-container.excluded .data-table td {
+    color: #9ca3af; /* 옅은 텍스트 색상 */
+}
+
+.table-container.excluded .data-table td a {
+    color: #6b7280;
+}
+
+.table-container.excluded .data-table td.selected-cell {
+    background-color: #d1d5db;
+}
+
+/* ================================== */
+/*          Nested Table Styles       */
+/* ================================== */
+
+/* Main table row containing B2B data */
+.b2b-row {
+    cursor: default; /* Remove pointer cursor from the main row */
+}
+
+/* Row that contains the nested table, hidden by default */
+.b2c-details-row > td {
+    padding: 0 !important;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+/* The expand/collapse icon */
+.toggle-icon {
+    cursor: pointer;
+    padding: 5px;
+    margin-right: 5px;
+    font-size: 1em;
+    color: var(--color-primary);
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+    user-select: none;
+    transition: transform 0.2s ease-in-out, background-color 0.2s;
+    border-radius: 50%;
+}
+
+.toggle-icon:hover {
+    background-color: var(--color-table-hover);
+}
+
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.toggle-icon svg {
+    display: block;
+    margin: auto;
+}
+
+/* Cell containing the toggle icon and checkbox */
+.checkbox-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.data-table th.checkbox-cell {
+    text-align: center;
+}
+
+/* Container for the nested table content */
+.nested-table-container {
+    padding: 1rem 1rem 1rem 3rem; /* Indent nested table */
+    background-color: #fcfcfc;
+    box-shadow: inset 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.nested-table-container .loading-message,
+.nested-table-container .no-data-message {
+    color: #6b7280;
+    font-style: italic;
+    padding: 1rem;
+}
+
+.nested-table-container .info-data-message {
+    color: #4b5563;
+    font-size: 11px;
+    padding: 2px 1rem;
+    background-color: #eef2ff;
+    border-bottom: 1px solid #e0e7ff;
+}
+
+/* Nested table styles */
+.nested-data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.nested-data-table th,
+.nested-data-table td {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    font-size: var(--font-size-xs);
+}
+
+.nested-data-table th {
+    background-color: #e9ecef;
+    font-weight: 600;
+}
+
+.nested-data-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* 플랫폼별 행 색상 */
+.nested-data-table .platform-b2b {
+    background-color: #e0f2fe; /* Light Blue */
+}
+.nested-data-table .platform-rechamp {
+    background-color: #fef3c7; /* Light Yellow */
+}
+.nested-data-table .platform-champ {
+    background-color: #dcfce7; /* Light Green */
+}
+.nested-data-table .platform-lcms {
+    background-color: #fce7f3; /* Light Pink */
+}
+
+/* 강의 상태별 스타일 */
+.status-sequential-open {
+    color: dodgerblue;
+    font-weight: 600;
+}
+
+.status-scheduled-open {
+
+        color: crimson;
+
+        font-weight: 600;
+
+    }
+
+    
+
+    /* ================================== */
+
+    /*        Book Details in Nested      */
+
+    /* ================================== */
+
+    
+
+    .book-details-divider {
+
+        border: none;
+
+        border-top: 1px dashed var(--color-border);
+
+        margin: 1rem 0;
+
+    }
+
+    
+
+    .book-main-title {
+
+    
+
+        font-size: var(--font-size-lg);
+
+    
+
+        font-weight: 600;
+
+    
+
+        color: var(--color-text-primary);
+
+    
+
+        margin-bottom: var(--spacing-sm);
+
+    
+
+        padding-left: var(--spacing-xs);
+
+    
+
+        border-left: 4px solid var(--color-primary);
+
+    
+
+    }
+
+    
+
+    
+
+    
+
+    .book-details-table td {
+
+    
+
+        background-color: #fdfdff;
+
+    
+
+    }
+
+    
+
+    
+
+    

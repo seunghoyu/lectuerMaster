@@ -1,0 +1,41 @@
+/**
+ * 드롭다운 컴포넌트 스타일
+ */
+.dropdown-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-base);
+    font-size: var(--font-size-base);
+}
+
+.dropdown-menu li {
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+}
+
+.dropdown-menu li:hover {
+    background-color: var(--color-table-hover);
+}
+
+
+.dropdown-menu.open {
+    max-height: 500px;
+}
+
+.dropdown-toggle {
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-base);
+}
+
+.dropdown-toggle i {
+    transition: transform var(--transition-base);
+    margin-left: var(--spacing-sm);
+}
+
+.dropdown-toggle.active i {
+    transform: rotate(180deg);
+}

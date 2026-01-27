@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture Master ERP</title>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+
+<div id="app">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-layer-group"></i>
+            <span class="link-text">해커스 교육그룹</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active">
+                <a href="#">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span class="link-text">B2B 강의리스트</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-header">
+            <h1>B2B 강의리스트</h1>
+            <!-- 툴바는 JavaScript로 동적 생성 -->
+        </header>
+        
+        <div class="workspace">
+            <div class="table-container">
+                <!-- Table will be rendered by JavaScript -->
+                
+                <!-- Pagination -->
+                <div class="pagination">
+                    <button class="btn-page" id="prevBtn">이전</button>
+                    <span class="page-info" id="pageInfo">1 / 1</span>
+                    <button class="btn-page" id="nextBtn">다음</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script type="module" src="javascript/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+/**
+ * 메인 레이아웃 스타일
+ * 모든 CSS 모듈을 import합니다.
+ */
+
+/* Base Styles */
+@import url('./base/variables.css');
+@import url('./base/reset.css');
+
+/* Components */
+@import url('./components/sidebar.css');
+@import url('./components/table.css');
+@import url('./components/pagination.css');
+@import url('./components/toolbar.css');
+@import url('./components/modal.css');
+@import url('./components/header.css');
+@import url('./components/dropdown.css');
+@import url('./components/share.css');
+@import url('./components/pluginBar.css');
+@import url('./components/listActions.css');
+@import url('./components/dashboard.css');
+@import url('./components/filter.css');
+@import url('./components/filterStatus.css');
+@import url('./components/compareModal.css');
+
+/* --- App Container --- */
+#app {
+    display: flex;
+    height: 100%;
+    width: 100%;
+}
+
+/* --- Main Content --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+}
+
+.top-header {
+    background: var(--color-white);
+    border-bottom: none !important;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.top-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+}
+
+
+.workspace {
+    flex: 1;
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    min-width: 0;
+}

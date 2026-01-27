@@ -1,0 +1,48 @@
+/**
+ * 페이지네이션 컴포넌트 스타일
+ */
+.pagination {
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-top: var(--border-width) solid var(--color-border);
+    background: var(--color-white);
+    flex-shrink: 0;
+    gap: 12px;
+}
+
+.btn-page {
+    padding: 6px 14px;
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-white);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    transition: var(--transition-base);
+}
+
+.btn-page:hover:not(:disabled) {
+    background-color: var(--color-background);
+    border-color: #d1d5db;
+}
+
+.btn-page:disabled {
+    background: #6b7280;
+    color: var(--color-white);
+    border-color: #6b7280;
+    cursor: not-allowed;
+}
+
+.btn-page[style*="background-color: #714b67"] {
+    background-color: #6b7280 !important;
+    color: var(--color-white) !important;
+    border-color: #6b7280 !important;
+}
+
+.page-info {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+

@@ -1,0 +1,73 @@
+/**
+ * 리스트 액션 메뉴 스타일
+ */
+.list-actions {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-background);
+    border-radius: var(--border-radius-sm);
+    border: var(--border-width) solid var(--color-border);
+}
+
+.list-actions-menu {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.list-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.list-action-btn:hover {
+    background: var(--color-table-hover);
+    border-color: #6b7280;
+}
+
+.list-action-btn i {
+    font-size: var(--font-size-sm);
+}
+
+.list-action-btn-danger {
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+.list-action-btn-danger:hover {
+    background: #fee2e2;
+    border-color: #dc2626;
+}
+
+.btn-add-to-list {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: #6b7280;
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.btn-add-to-list:hover {
+    background: #4b5563;
+}
+
+.btn-add-to-list i {
+    font-size: var(--font-size-sm);
+}

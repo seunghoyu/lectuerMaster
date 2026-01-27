@@ -1,0 +1,157 @@
+/**
+ * 공유 기능 컴포넌트 스타일
+ */
+.share-input-container {
+    position: relative;
+    margin-top: var(--spacing-md);
+}
+
+.share-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    transition: var(--transition-base);
+    box-sizing: border-box;
+}
+
+.share-input:focus {
+    outline: none;
+    border-color: #6b7280;
+}
+
+.share-input-hint {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-md);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 4px;
+    display: none;
+}
+
+.autocomplete-dropdown.show {
+    display: block;
+}
+
+.autocomplete-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background: var(--color-table-hover);
+}
+
+.autocomplete-item .team {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.autocomplete-item .name {
+    color: var(--color-text-secondary);
+    margin-left: var(--spacing-sm);
+}
+
+.autocomplete-item .id {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    margin-left: var(--spacing-sm);
+}
+
+/* 공유된 사람 확인 모달 스타일 */
+.shared-users-modal {
+    max-width: 600px;
+}
+
+.shared-users-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    background: var(--color-white);
+}
+
+.shared-user-item {
+    padding: var(--spacing-md);
+    border-bottom: var(--border-width) solid var(--color-border);
+    transition: var(--transition-fast);
+}
+
+.shared-user-item:last-child {
+    border-bottom: none;
+}
+
+.shared-user-item:hover {
+    background: var(--color-table-hover);
+}
+
+.shared-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.shared-user-name {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.shared-user-meta {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.shared-date {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.shared-count {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.no-shared-users {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.no-shared-users i {
+    font-size: 48px;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.no-shared-users p {
+    font-size: var(--font-size-base);
+    margin: 0;
+}

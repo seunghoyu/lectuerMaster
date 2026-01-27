@@ -1,0 +1,17 @@
+[
+    {
+        "team": "B2B서비스전략",
+        "name": "김개발",
+        "id": "kimdev"
+    },
+    {
+        "team": "B2B서비스전략",
+        "name": "유승호",
+        "id": "yuseungho"
+    },
+    {
+        "team": "개발팀",
+        "name": "이개발",
+        "id": "leedev"
+    }
+]
