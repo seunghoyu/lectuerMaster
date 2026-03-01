@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문서 - Lecture Master</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --docs-font: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --docs-sidebar-width: 260px;
+            --docs-header-height: 56px;
+            --docs-bg: #f8f9fa;
+            --docs-surface: #fff;
+            --docs-border: #dadce0;
+            --docs-text: #202124;
+            --docs-text-secondary: #5f6368;
+            --docs-accent: #1a73e8;
+            --docs-hover: #f1f3f4;
+        }
+        body {
+            margin: 0;
+            font-family: var(--docs-font);
+            background: var(--docs-bg);
+            color: var(--docs-text);
+            min-height: 100vh;
+        }
+        .docs-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .docs-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--docs-sidebar-width);
+            height: 100vh;
+            background: var(--docs-surface);
+            border-right: 1px solid var(--docs-border);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .docs-sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--docs-border);
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--docs-text);
+        }
+        .docs-sidebar-header i {
+            color: var(--docs-accent);
+        }
+        .docs-sidebar-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        .docs-sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--docs-text);
+            font-size: 14px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+            transition: background 0.1s;
+        }
+        .docs-sidebar-item:hover {
+            background: var(--docs-hover);
+        }
+        .docs-sidebar-item.active {
+            background: #e8f0fe;
+            color: var(--docs-accent);
+        }
+        .docs-sidebar-item i.doc-icon-md { color: #1e8e3e; }
+        .docs-sidebar-item i.doc-icon-html { color: #ea4335; }
+        .docs-sidebar-item .doc-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .docs-main {
+            flex: 1;
+            margin-left: var(--docs-sidebar-width);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+        .docs-toolbar {
+            height: var(--docs-header-height);
+            background: var(--docs-surface);
+            border-bottom: 1px solid var(--docs-border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 16px;
+        }
+        .docs-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            color: var(--docs-accent);
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+        .docs-back:hover {
+            background: var(--docs-hover);
+        }
+        .docs-content-wrap {
+            flex: 1;
+            overflow: auto;
+            padding: 24px 32px;
+            min-height: 0;
+        }
+        .docs-content {
+            width: 100%;
+            min-height: 100%;
+            background: var(--docs-surface);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            padding: 32px 40px;
+        }
+        .docs-content h1, .docs-content h2, .docs-content h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: var(--docs-text);
+        }
+        .docs-content h1 { font-size: 1.75rem; margin-top: 0; }
+        .docs-content h2 { font-size: 1.35rem; border-bottom: 1px solid var(--docs-border); padding-bottom: 0.3em; }
+        .docs-content h3 { font-size: 1.15rem; }
+        .docs-content p { line-height: 1.7; margin: 0.75em 0; }
+        .docs-content ul, .docs-content ol { margin: 0.75em 0; padding-left: 1.5em; }
+        .docs-content li { margin: 0.35em 0; }
+        .docs-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        .docs-content th, .docs-content td { border: 1px solid var(--docs-border); padding: 8px 12px; text-align: left; }
+        .docs-content th { background: var(--docs-hover); font-weight: 600; }
+        .docs-content blockquote { margin: 1em 0; padding-left: 1em; border-left: 4px solid var(--docs-accent); color: var(--docs-text-secondary); }
+        .docs-content code { background: #f1f3f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .docs-content pre { background: #f1f3f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
+        .docs-content pre code { background: none; padding: 0; }
+        .docs-empty {
+            color: var(--docs-text-secondary);
+            text-align: center;
+            padding: 60px 24px;
+            font-size: 15px;
+        }
+        .docs-empty i {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="docs-layout">
+        <aside class="docs-sidebar">
+            <div class="docs-sidebar-header">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>문서 목록</span>
+            </div>
+            <div class="docs-sidebar-list" id="docsSidebarList"></div>
+        </aside>
+        <main class="docs-main">
+            <div class="docs-toolbar">
+                <a href="../index.html" target="_blank" rel="noopener noreferrer" class="docs-back">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Lecture Master로 돌아가기</span>
+                </a>
+            </div>
+            <div class="docs-content-wrap">
+                <div class="docs-content" id="docsContent">
+                    <div class="docs-empty" id="docsEmpty">
+                        <i class="fa-solid fa-file-lines"></i>
+                        왼쪽 목록에서 문서를 선택하세요.
+                    </div>
+                    <div id="docsRendered" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        (function() {
+            // docs 폴더에 있는 문서 목록 (새 문서 추가 시 여기에 항목 추가)
+            const DOC_LIST = [
+                { name: '전체 소스코드 문서', file: '전체_소스코드_문서.md', type: 'md' },
+                { name: '아키텍처 모식도', file: '아키텍처_모식도.html', type: 'html' }
+            ];
+
+            const sidebarList = document.getElementById('docsSidebarList');
+            const docsEmpty = document.getElementById('docsEmpty');
+            const docsRendered = document.getElementById('docsRendered');
+
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                langPrefix: 'language-'
+            });
+
+            function getDisplayName(file) {
+                return file.replace(/\.(md|html)$/, '').replace(/_/g, ' ');
+            }
+
+            function renderSidebar() {
+                sidebarList.innerHTML = DOC_LIST.map(function(doc, i) {
+                    const iconClass = doc.type === 'md' ? 'fa-solid fa-file-lines doc-icon-md' : 'fa-solid fa-diagram-project doc-icon-html';
+                    const isHtml = doc.type === 'html';
+                    return '<button type="button" class="docs-sidebar-item" data-index="' + i + '" data-type="' + doc.type + '" data-file="' + encodeURIComponent(doc.file) + '">' +
+                        '<i class="' + iconClass + '"></i>' +
+                        '<span class="doc-name">' + doc.name + '</span>' +
+                        (isHtml ? '<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:11px;color:var(--docs-text-secondary)"></i>' : '') +
+                        '</button>';
+                }).join('');
+            }
+
+            function setActive(index) {
+                sidebarList.querySelectorAll('.docs-sidebar-item').forEach(function(el, i) {
+                    el.classList.toggle('active', parseInt(el.getAttribute('data-index'), 10) === index);
+                });
+            }
+
+            function showEmpty() {
+                docsEmpty.style.display = 'block';
+                docsRendered.style.display = 'none';
+                docsRendered.innerHTML = '';
+            }
+
+            function showRendered(html) {
+                docsEmpty.style.display = 'none';
+                docsRendered.style.display = 'block';
+                docsRendered.innerHTML = html;
+            }
+
+            function loadMarkdown(file) {
+                fetch(file)
+                    .then(function(r) {
+                        if (!r.ok) throw new Error('파일을 불러올 수 없습니다.');
+                        return r.text();
+                    })
+                    .then(function(text) {
+                        showRendered(marked.parse(text));
+                    })
+                    .catch(function(err) {
+                        showRendered('<p style="color:#c5221f">' + err.message + '</p>');
+                    });
+            }
+
+            sidebarList.addEventListener('click', function(e) {
+                var item = e.target.closest('.docs-sidebar-item');
+                if (!item) return;
+                var type = item.getAttribute('data-type');
+                var file = decodeURIComponent(item.getAttribute('data-file'));
+                var index = parseInt(item.getAttribute('data-index'), 10);
+                setActive(index);
+                if (type === 'html') {
+                    window.open(file, '_blank', 'noopener,noreferrer');
+                    return;
+                }
+                loadMarkdown(file);
+            });
+
+            renderSidebar();
+        })();
+    </script>
+</body>
+</html>

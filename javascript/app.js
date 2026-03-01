@@ -129,6 +129,7 @@ class LectureMasterApp {
             console.log(`데이터 로드 완료: 총 ${this.allLectureData.length}개, 메인 ${this.mainLectureData.length}개, 제외된 ${this.excludedLectureData.length}개`);
             
             this.renderHeader();
+            this.toolbarContainer = document.getElementById('headerToolbarContainer') || document.querySelector('.top-header');
             this.renderToolbar();
             this.renderTable(this.currentPageNumber);
 
@@ -152,7 +153,27 @@ class LectureMasterApp {
             const menuName = this.getCurrentMenuName();
             const selectedCount = this.selectedLectures.size;
             HeaderRenderer.renderToDOM(headerContainer, menuName, selectedCount);
+            this.bindProfileDropdown();
         }
+    }
+    
+    /**
+     * 프로필 영역 클릭 시 문서 메뉴 드롭다운 토글
+     */
+    bindProfileDropdown() {
+        const profileBtn = document.getElementById('userProfileBtn');
+        const dropdown = document.getElementById('userProfileDropdown');
+        if (!profileBtn || !dropdown) return;
+        
+        profileBtn.onclick = (e) => {
+            e.stopPropagation();
+            profileBtn.classList.toggle('open');
+        };
+        
+        dropdown.querySelector('#docsLink').onclick = (e) => {
+            e.stopPropagation();
+            profileBtn.classList.remove('open');
+        };
     }
     
     /**
@@ -741,12 +762,23 @@ class LectureMasterApp {
     setupModalEvents() {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                const profileBtn = document.getElementById('userProfileBtn');
+                if (profileBtn?.classList.contains('open')) {
+                    profileBtn.classList.remove('open');
+                    return;
+                }
                 if (document.getElementById('saveModalOverlay')?.classList.contains('active')) this.closeSaveModal();
                 else if (document.getElementById('shareModalOverlay')?.classList.contains('active')) this.closeShareModal();
                 else if (document.getElementById('editListNameModalOverlay')?.classList.contains('active')) this.closeEditListNameModal();
                 else if (document.getElementById('automationModalOverlay')?.classList.contains('active')) this.closeAutomationModal();
                 else if (document.getElementById('registerByCodeModalOverlay')?.classList.contains('active')) this.closeRegisterByCodeModal();
                 else if (document.getElementById('unsettledLecturesModalOverlay')?.classList.contains('active')) this.closeRegisterUnsettledModal();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            const profileBtn = document.getElementById('userProfileBtn');
+            if (profileBtn?.classList.contains('open') && !profileBtn.contains(e.target)) {
+                profileBtn.classList.remove('open');
             }
         });
     }

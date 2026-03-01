@@ -1,0 +1,57 @@
+erDiagram
+    LECTURE_LISTS ||--o{ B2B_LECTURES : "lectureCodes ref"
+    SHARED_LISTS }o--|| LECTURE_LISTS : "listName"
+    SHARED_LISTS }o--|| USERS : "sharedBy"
+    B2B_LECTURES ||--o| SETTLEMENT_STATUS : "lectureCode"
+    B2B_LECTURES }o--o| BOOK_LIST : "isbn"
+    B2B_LECTURES }o--o| RECHAMP_LECTURE : "b2cCode"
+
+    LECTURE_LISTS {
+        string name
+        string contractType
+        string lectureCodes
+        string createdAt
+        string updatedAt
+    }
+
+    SHARED_LISTS {
+        string listName
+        string sharedBy
+        string sharedWith
+        string sharedWithId
+        string sharedAt
+    }
+
+    USERS {
+        string id
+        string team
+        string name
+    }
+
+    B2B_LECTURES {
+        string lectureCode
+        string lectureName
+        string category
+        string lectureStatus
+        string b2cCode
+        string isbn
+        string settlementFlag
+    }
+
+    BOOK_LIST {
+        string isbn
+        string bookTitle
+        string author
+        float listPrice
+    }
+
+    SETTLEMENT_STATUS {
+        string lectureCode
+        string status
+    }
+
+    RECHAMP_LECTURE {
+        string lectureCode
+        string skinId
+        string lectureTitle
+    }

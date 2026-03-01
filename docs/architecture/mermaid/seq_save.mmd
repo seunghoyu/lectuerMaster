@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant U as 사용자
+    participant App as 앱
+    participant Modal as 저장 모달
+    participant Storage as 저장소
+
+    U->>App: [저장] 클릭 (선택 1개 이상)
+    App->>App: 선택 강의코드 수집
+    App->>Modal: 저장 모달 표시
+    U->>App: 리스트명·계약유형·(공유) 입력 후 확인
+    App->>App: saveLectureList() 검증
+    App->>Storage: saveLectureList(리스트명, 강의코드, 계약유형, 금액매핑)
+    Storage-->>App: 성공
+    App->>Modal: 모달 닫기
+    App->>App: showAllLectures(), setupSidebar()

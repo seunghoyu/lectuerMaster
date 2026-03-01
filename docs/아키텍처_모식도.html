@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lectureMaster - Architecture Diagram (ERD 중심)</title>
+    <!-- lectureMaster 프로젝트 통합 아키텍처 문서 | 번호별 MD 로드 + Mermaid 별도 렌더링 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100vh; width: 100%; }
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 24px;
+            color: #333;
+        }
+        .doc-meta { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+        .doc-meta span { margin-right: 16px; }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; color: #1a1a1a; }
+        h2 { font-size: 1.25rem; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #1a73e8; color: #1a73e8; }
+        h3 { font-size: 1.1rem; margin: 24px 0 12px; color: #333; }
+        h4 { font-size: 1rem; margin: 16px 0 8px; color: #555; }
+        .nav-anchor { margin: 16px 0; font-size: 0.9rem; }
+        .nav-anchor a { color: #1a73e8; text-decoration: none; margin-right: 12px; }
+        .nav-anchor a:hover { text-decoration: underline; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin: 16px 0;
+        }
+        .section-title { font-weight: bold; color: #1a73e8; margin: 20px 0 10px; font-size: 1rem; border-left: 4px solid #1a73e8; padding-left: 10px; }
+        table.data-dict, table.crud-matrix, .card table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin: 12px 0;
+        }
+        table.data-dict th, table.data-dict td, table.crud-matrix th, table.crud-matrix td, .card table th, .card table td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        table.data-dict th, table.crud-matrix th, .card table th { background: #e8f0fe; font-weight: 600; }
+        .entity-narrative { margin: 12px 0; line-height: 1.6; color: #444; }
+        .feat-id { font-weight: 700; color: #1a73e8; }
+        .anchor-id { font-family: monospace; font-size: 0.85em; color: #666; }
+        .tbd { color: #c5221f; font-style: italic; }
+        .mermaid { background: #fff; padding: 20px; border-radius: 8px; margin: 16px 0; }
+        .seq-block { background: #f8f9fa; padding: 16px; border-radius: 6px; margin: 12px 0; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; }
+        #section-erd .mermaid, #section-sequence-flow .mermaid { min-height: 200px; }
+        .loading { color: #666; padding: 20px; }
+        .card ul { padding-left: 1.2em; }
+        .card p { margin: 0.75em 0; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<header class="card" id="top">
+    <div id="section-header" class="loading">문서 로딩 중…</div>
+</header>
+
+<section class="card" id="overview">
+    <div id="section-overview" class="loading">로딩 중…</div>
+</section>
+
+<section class="card" id="erd-main">
+    <div id="section-erd" class="loading">로딩 중…</div>
+</section>
+
+<section class="card" id="entities">
+    <div id="section-entities" class="loading">로딩 중…</div>
+</section>
+
+<section class="card" id="feature-list">
+    <div id="section-feature-list" class="loading">로딩 중…</div>
+</section>
+
+<section class="card" id="crud-matrix">
+    <div id="section-crud-matrix" class="loading">로딩 중…</div>
+</section>
+
+<section class="card" id="sequence-flow">
+    <div id="section-sequence-flow" class="loading">로딩 중…</div>
+</section>
+
+<footer class="card" style="margin-top:24px; font-size:0.85rem; color:#666;">
+    <p><strong>lectureMaster</strong> 통합 아키텍처 문서 · 번호별 MD + Mermaid 분리 렌더링 · v0.1 · 생성일 2025-03-01</p>
+    <p>검수: 단일 HTML ✓ | ERD 메인 ✓ | 테이블별 Data Dictionary ✓ | 기능별 테이블(Feature List) ✓ | Feature↔Table↔CRUD 링크 ✓</p>
+</footer>
+
+<script>
+(function() {
+    var BASE = 'architecture/';
+    var MERMAID_BASE = BASE + 'mermaid/';
+
+    function getDocPath(num) { return BASE + (num < 10 ? '0' + num : num) + '_' + ({ 0: 'header', 1: 'overview', 2: 'erd', 3: 'entities', 4: 'feature_list', 5: 'crud_matrix', 6: 'sequence_flow' }[num] || '') + '.md'; }
+
+    function fetchText(url) {
+        return fetch(url).then(function(r) {
+            if (!r.ok) throw new Error(url + ' ' + r.status);
+            return r.text();
+        });
+    }
+
+    function replacePlaceholder(html, id, divId) {
+        var re = new RegExp('<!--\\s*MERMAID_PLACEHOLDER:\\s*' + id + '\\s*-->', 'i');
+        return html.replace(re, '<div class="mermaid" id="' + divId + '"></div>');
+    }
+
+    function renderMarkdown(md) {
+        if (!md) return '';
+        marked.setOptions({ breaks: true, gfm: true });
+        return marked.parse(md);
+    }
+
+    function inject(elId, html) {
+        var el = document.getElementById(elId);
+        if (el) el.innerHTML = html;
+    }
+
+    Promise.all([
+        fetchText(getDocPath(0)),
+        fetchText(getDocPath(1)),
+        fetchText(getDocPath(2)),
+        fetchText(getDocPath(3)),
+        fetchText(getDocPath(4)),
+        fetchText(getDocPath(5)),
+        fetchText(getDocPath(6)),
+        fetchText(MERMAID_BASE + 'erd.mmd'),
+        fetchText(MERMAID_BASE + 'seq_save.mmd'),
+        fetchText(MERMAID_BASE + 'seq_compare.mmd')
+    ]).then(function(arr) {
+        var headerMd = arr[0], overviewMd = arr[1], erdMd = arr[2], entitiesMd = arr[3], featureListMd = arr[4], crudMd = arr[5], seqFlowMd = arr[6];
+        var erdMmd = arr[7], seqSaveMmd = arr[8], seqCompareMmd = arr[9];
+
+        inject('section-header', renderMarkdown(headerMd));
+        inject('section-overview', renderMarkdown(overviewMd));
+
+        var erdHtml = renderMarkdown(erdMd);
+        erdHtml = replacePlaceholder(erdHtml, 'erd', 'mermaid-erd');
+        inject('section-erd', erdHtml);
+
+        inject('section-entities', renderMarkdown(entitiesMd));
+        inject('section-feature-list', renderMarkdown(featureListMd));
+        (function addFeatureAnchors() {
+            var section = document.getElementById('section-feature-list');
+            if (!section) return;
+            var table = section.querySelector('table');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+            rows.forEach(function(tr) {
+                var firstCell = tr.querySelector('td');
+                if (!firstCell) return;
+                var text = (firstCell.textContent || '').trim();
+                var m = text.match(/^F-(\d{3})$/);
+                if (m) tr.id = 'feat-F-' + m[1];
+            });
+        })();
+        inject('section-crud-matrix', renderMarkdown(crudMd));
+
+        var seqHtml = renderMarkdown(seqFlowMd);
+        seqHtml = replacePlaceholder(seqHtml, 'seq_save', 'mermaid-seq-save');
+        seqHtml = replacePlaceholder(seqHtml, 'seq_compare', 'mermaid-seq-compare');
+        inject('section-sequence-flow', seqHtml);
+
+        var erdEl = document.getElementById('mermaid-erd');
+        var seqSaveEl = document.getElementById('mermaid-seq-save');
+        var seqCompareEl = document.getElementById('mermaid-seq-compare');
+
+        if (erdEl) erdEl.textContent = erdMmd;
+        if (seqSaveEl) seqSaveEl.textContent = seqSaveMmd;
+        if (seqCompareEl) seqCompareEl.textContent = seqCompareMmd;
+
+        mermaid.initialize({ theme: 'neutral', er: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
+        mermaid.run({ nodes: [].slice.call(document.querySelectorAll('.mermaid')) });
+    }).catch(function(err) {
+        console.error(err);
+        document.querySelectorAll('.loading').forEach(function(el) {
+            el.innerHTML = '<p style="color:#c5221f;">문서를 불러오지 못했습니다. 로컬 서버로 docs 폴더를 연 후 다시 시도하세요.</p><pre>' + err.message + '</pre>';
+        });
+    });
+})();
+</script>
+</body>
+</html>

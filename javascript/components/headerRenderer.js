@@ -19,11 +19,19 @@ export class HeaderRenderer {
                     <span class="menu-title-text">${menuName}</span>
                     <span class="selected-count-in-header">선택: <strong>${selectedCount}</strong>개</span>
                 </div>
-                <div class="user-info">
+                <div class="user-info user-info-profile" id="userProfileBtn" role="button" tabindex="0" title="프로필 메뉴">
                     <span class="user-name">${user.name}</span>
                     <span class="user-id">(${user.id})</span>
+                    <i class="fa-solid fa-chevron-down user-info-chevron"></i>
+                    <div class="user-info-dropdown" id="userProfileDropdown">
+                        <a href="docs/index.html" target="_blank" rel="noopener noreferrer" class="user-info-dropdown-item" id="docsLink">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <span>문서</span>
+                        </a>
+                    </div>
                 </div>
             </div>
+            <div id="headerToolbarContainer"></div>
         `;
     }
     
@@ -40,13 +48,8 @@ export class HeaderRenderer {
         }
         
         const headerHtml = this.render(menuName, selectedCount);
-        const existingRow = container.querySelector('.top-header-row');
-        if (existingRow) {
-            existingRow.remove();
-        }
-        container.insertAdjacentHTML('afterbegin', headerHtml);
+        container.innerHTML = headerHtml;
         
-        // 기존 menu-title-bar 제거 (더 이상 필요 없음)
         const existingMenuBar = document.querySelector('.menu-title-bar');
         if (existingMenuBar) {
             existingMenuBar.remove();

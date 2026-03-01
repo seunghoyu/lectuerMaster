@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant U as 사용자
+    participant App as 앱
+    participant Rechamp as Re챔프
+    participant Admin as 관리강의
+    participant Champ as 챔프강의
+    participant Unified as 통합LCMS
+    participant Settle as 정산
+    participant Modal as 비교 모달
+
+    U->>App: [비교] 클릭 (강의코드, B2C강의코드)
+    App->>App: B2B 강의 행 조회
+    App->>Rechamp: getRechampDataByB2CCode
+    App->>Admin: getDataById(skinId)
+    App->>Champ: getDataByRowNo(champLectureId)
+    App->>Unified: getDataByLectureId(adminLectureCode)
+    App->>Settle: getStatusByCode(강의코드)
+    App->>Modal: 비교 모달 표시
+    U->>App: 닫기 클릭/Esc
+    App->>Modal: 모달 닫기

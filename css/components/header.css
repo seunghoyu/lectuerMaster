@@ -43,3 +43,62 @@
 .user-info .user-id {
     color: var(--color-text-secondary);
 }
+
+/* 프로필 드롭다운 */
+.user-info.user-info-profile {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    z-index: 50;
+}
+
+.user-info-chevron {
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.7;
+    transition: transform var(--transition-base) var(--transition-easing);
+}
+
+.user-info.user-info-profile.open .user-info-chevron {
+    transform: rotate(180deg);
+}
+
+.user-info-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 160px;
+    background: var(--color-white);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: 1001;
+    overflow: visible;
+}
+
+.user-info.user-info-profile.open .user-info-dropdown {
+    display: block;
+}
+
+.user-info-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: background var(--transition-fast);
+}
+
+.user-info-dropdown-item:hover {
+    background: var(--color-table-hover);
+}
+
+.user-info-dropdown-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--color-text-secondary);
+}
