@@ -144,7 +144,7 @@ export class TableRenderer {
             }
 
             if (column.type === 'checkbox') {
-                const toggleIcon = `<span class="toggle-icon" data-lecture-id="${lectureId}" title="연결된 강의 보기">
+                const toggleIcon = `<span class="toggle-icon" data-lecture-id="${lectureId}" title="상세 보기">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                         <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
                     </svg>
@@ -207,6 +207,7 @@ export class TableRenderer {
         
         let colspan = CONFIG.TABLE_COLUMNS.length + 2; // 교재명, SAP자재코드 추가
 
+        // 리스트 정보가 있을 때 인당과금 금액 컬럼 추가
         if (listInfo && listInfo.contractType === '인당과금' && listInfo.priceMap) {
             const lectureCode = item['강의코드'] || '';
             const price = listInfo.priceMap[lectureCode];

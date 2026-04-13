@@ -24,11 +24,11 @@ export const CONFIG = {
         { key: 'B2C강의코드', label: 're챔프코드', type: 'text' },
         { key: '자체/외부강의', label: '강의 타입', type: 'text' },
         { key: '강사명', label: '강사명', type: 'text' },
-        { key: '업체명', label: '업체명', type: 'text' },
-        { key: '생성자', label: '생성자', type: 'text' },
         { key: '강의생성일', label: '생성일시', type: 'date' },
         { key: '정산여부', label: '정산여부', type: 'text' },
-        { key: 'ISBN', label: 'ISBN', type: 'text' }
+        { key: 'ISBN', label: 'ISBN', type: 'text' },
+        { key: '업체명', label: '업체명', type: 'text' },
+        { key: '생성자', label: '생성자', type: 'text' }
     ],
     
     // 정렬 설정

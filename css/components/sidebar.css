@@ -2,51 +2,49 @@
  * 사이드바 컴포넌트 스타일
  */
 .sidebar {
-    width: var(--sidebar-width-collapsed);
+    /* 항상 열린 상태(고정 폭) */
+    width: var(--sidebar-width-expanded);
     background-color: var(--color-sidebar-background);
     color: var(--color-sidebar-text);
     display: flex;
     flex-direction: column;
-    transition: width var(--transition-slow) var(--transition-easing);
+    transition: none;
     z-index: 100;
     flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
 }
 
-.sidebar:hover {
-    width: var(--sidebar-width-expanded);
-}
-
 .sidebar-header {
-    height: 60px;
+    height: 48px;
     display: flex;
     align-items: center;
-    padding: 0 var(--spacing-lg);
+    padding: 0 12px;
     border-bottom: var(--border-width) solid var(--color-sidebar-hover);
     font-weight: 600;
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-base);
 }
 
 .sidebar-header i {
     min-width: 24px;
     text-align: center;
-    margin-right: var(--spacing-md);
+    margin-right: 10px;
 }
 
 .sidebar-menu {
     list-style: none;
-    padding-top: 10px;
+    padding-top: 6px;
 }
 
 .menu-item a {
     display: flex;
     align-items: center;
-    height: 48px;
-    padding: 0 var(--spacing-lg);
+    height: 40px;
+    padding: 0 12px;
     text-decoration: none;
     color: var(--color-text-disabled);
     transition: var(--transition-base);
+    font-size: var(--font-size-sm);
 }
 
 .menu-item:hover a,
@@ -59,36 +57,32 @@
 
 .menu-item i {
     min-width: 24px;
-    margin-right: var(--spacing-md);
+    margin-right: 10px;
     text-align: center;
-    font-size: var(--font-size-xl);
+    font-size: 16px;
 }
 
 .link-text {
-    opacity: 0;
-    transition: opacity var(--transition-base);
-}
-
-.sidebar:hover .link-text {
     opacity: 1;
+    transition: none;
 }
 
 /* 저장된 리스트 섹션 */
 .menu-section-title {
     display: flex;
     align-items: center;
-    height: 48px;
-    padding: 0 var(--spacing-lg);
+    height: 40px;
+    padding: 0 12px;
     color: var(--color-text-disabled);
     font-size: var(--font-size-sm);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    gap: 10px;
 }
 
 .menu-section-title i {
     min-width: 24px;
-    margin-right: var(--spacing-md);
     text-align: center;
     font-size: var(--font-size-base);
 }
@@ -112,12 +106,8 @@
 
 /* 저장된 리스트 아이콘 - 마우스 오버 시에만 표시 */
 .saved-list-item i {
-    opacity: 0;
-    transition: opacity var(--transition-base);
-}
-
-.sidebar:hover .saved-list-item i {
     opacity: 1;
+    transition: none;
 }
 
 
@@ -152,11 +142,28 @@
 
 .dashboard-menu-item i {
     color: #93c5fd;
-    font-size: var(--font-size-xl);
+    font-size: 16px;
 }
 
 .dashboard-menu-item:hover i,
 .dashboard-menu-item.active i {
     color: var(--color-white);
+}
+
+/* 사이드바 드롭다운(펼침) 영역을 더 컴팩트하게 */
+.sidebar .dropdown-menu {
+    font-size: var(--font-size-sm);
+}
+
+/* dropdown.css의 li padding 제거(사이드바는 a 높이로 통일) */
+.sidebar .dropdown-menu > li {
+    padding: 0;
+}
+
+/* 토글(섹션 타이틀)의 화살표 간격/크기 */
+.sidebar .dropdown-toggle i.fa-chevron-down {
+    margin-left: auto;
+    font-size: 12px;
+    opacity: 0.9;
 }
 

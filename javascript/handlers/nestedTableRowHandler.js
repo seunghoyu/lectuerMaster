@@ -150,7 +150,7 @@ export class NestedTableRowHandler {
         
                     const adminLecCode = champAdmin.adminLectureCode ? String(champAdmin.adminLectureCode) : null;
                     if (adminLecCode && champAdmin.serviceCategory === '통합LCMS') {
-                        const lcmsMatches = UnifiedLcmsService.getAllDataByLectureId(adminLecCode);
+                        const lcmsMatches = UnifiedLcmsService.getDataByLectureId(adminLecCode);
                         if (lcmsMatches && lcmsMatches.length > 0) {
                             for (const lcmsMatch of lcmsMatches) {
                                 relatedData.set(`lcms-${lcmsMatch.lectureId}-${Math.random()}`, { platform: '통합LCMS', ...lcmsMatch });
@@ -182,7 +182,6 @@ export class NestedTableRowHandler {
         const container = detailsRow.querySelector('.nested-table-container');
         const { data, messages } = this.findRelatedData(lectureId);
         const relatedData = Array.from(data.values());
-
         const b2bLecture = this.app.allLectureData.find(l => l['강의코드'] === lectureId);
 
         let contentHtml = '';
@@ -191,8 +190,8 @@ export class NestedTableRowHandler {
             const messageHtml = messages.map(msg => `<p class="no-data-message">${msg}</p>`).join('');
             contentHtml += messageHtml;
         } else {
-            const messageHtml = messages.map(msg => `<p class="info-data-message">${msg}</p>`).join('');
-            contentHtml += messageHtml + this.renderNestedTable(relatedData);
+            // 연동 체인은 표로 보여주되, "상세(돋보기)" 컬럼만 제거합니다.
+            contentHtml += this.renderNestedTable(relatedData);
         }
 
         if (b2bLecture) {
@@ -249,6 +248,81 @@ export class NestedTableRowHandler {
      * @returns {string}
      */
     renderNestedTable(data) {
+        const escapeHtml = (value) => {
+            const str = value == null ? '' : String(value);
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+
+        // 통합LCMS의 내부강의(자체제작)은 화면에서 제외
+        const filteredData = data.filter(item => {
+            if (item?.platform !== '통합LCMS') return true;
+            const title = item?.lectureTitle == null ? '' : String(item.lectureTitle).trim();
+            return title !== '내부강의(자체제작)';
+        });
+
+        // 연결 체인 키(코드/스킨ID/연동코드)에서 "같은 값"을 같은 색으로 강조
+        const palette = [
+            { bg: '#DBEAFE', border: '#60A5FA' }, // blue
+            { bg: '#DCFCE7', border: '#34D399' }, // green
+            { bg: '#FEF3C7', border: '#F59E0B' }, // amber
+            { bg: '#FCE7F3', border: '#F472B6' }, // pink
+            { bg: '#EDE9FE', border: '#8B5CF6' }, // violet
+            { bg: '#E0F2FE', border: '#38BDF8' }, // sky
+            { bg: '#FFEDD5', border: '#FB923C' }, // orange
+            { bg: '#FEE2E2', border: '#F87171' }, // red
+        ];
+
+        const linkValues = [];
+        for (const item of filteredData) {
+            switch (item.platform) {
+                case 'B2B':
+                    linkValues.push(item['강의코드'], item['B2C강의코드']);
+                    break;
+                case '(re)챔프스터디':
+                    linkValues.push(item.lectureCode, item.skinId);
+                    break;
+                case '챔프강의창':
+                    linkValues.push(item.rowNo, item['연동강의코드']);
+                    break;
+                case '통합LCMS':
+                    linkValues.push(item.lectureId);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        const counts = new Map();
+        for (const v of linkValues) {
+            const key = v == null ? '' : String(v).trim();
+            if (!key) continue;
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+
+        const highlight = new Map(); // value -> {bg,border}
+        let paletteIdx = 0;
+        for (const [value, cnt] of counts.entries()) {
+            if (cnt < 2) continue; // 같은 값이 여러 번 등장할 때만 강조
+            highlight.set(value, palette[paletteIdx % palette.length]);
+            paletteIdx += 1;
+        }
+
+        const getCellHighlightAttrs = (value) => {
+            const raw = value == null ? '' : String(value).trim();
+            if (!raw) return { className: '', style: '' };
+            const color = highlight.get(raw);
+            if (!color) return { className: '', style: '' };
+            return {
+                className: 'link-highlight-cell',
+                style: `--hl-bg:${color.bg};--hl-border:${color.border};`
+            };
+        };
+
         const headers = `
             <th>플랫폼</th>
             <th>강의 코드</th>
@@ -257,10 +331,9 @@ export class NestedTableRowHandler {
             <th>연동 강의 코드</th>
             <th>연동 강의 플랫폼</th>
             <th>상태/생성일</th>
-            <th>상세</th>
         `;
 
-        const rows = data.map(item => {
+        const rows = filteredData.map(item => {
             let code = '', title = '', status = '', skinId = '', linkedCode = '', linkedPlatform = '';
             
             // 플랫폼별로 클래스 이름을 생성합니다. (예: '(re)챔프스터디' -> 'platform-rechamp')
@@ -295,19 +368,19 @@ export class NestedTableRowHandler {
                     return '';
             }
 
-            // data-item 속성에 전체 item 객체를 JSON 문자열로 저장
-            const itemData = JSON.stringify(item);
+            const codeHl = getCellHighlightAttrs(code);
+            const skinHl = getCellHighlightAttrs(skinId);
+            const linkedHl = getCellHighlightAttrs(linkedCode);
 
             return `
                 <tr class="${platformClass}">
                     <td>${item.platform}</td>
-                    <td>${code}</td>
-                    <td class="text-left">${title}</td>
-                    <td>${skinId}</td>
-                    <td>${linkedCode}</td>
+                    <td class="${codeHl.className}" style="${codeHl.style}">${escapeHtml(code)}</td>
+                    <td class="text-left">${escapeHtml(title)}</td>
+                    <td class="${skinHl.className}" style="${skinHl.style}">${escapeHtml(skinId)}</td>
+                    <td class="${linkedHl.className}" style="${linkedHl.style}">${escapeHtml(linkedCode)}</td>
                     <td>${linkedPlatform}</td>
-                    <td>${status}</td>
-                    <td><i class="fa-solid fa-magnifying-glass details-icon" data-item='${itemData}'></i></td>
+                    <td>${escapeHtml(status)}</td>
                 </tr>
             `;
         }).join('');

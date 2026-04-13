@@ -5,7 +5,7 @@
 :root {
     /* 레이아웃 */
     --sidebar-width-collapsed: 64px;
-    --sidebar-width-expanded: 240px;
+    --sidebar-width-expanded: 200px;
     
     /* 색상 */
     --color-background: #f9fafb;

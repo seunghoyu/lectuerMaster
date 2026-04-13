@@ -35,7 +35,7 @@
 .data-table thead {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 5;
     background-color: var(--color-background);
 }
 
@@ -43,7 +43,7 @@
 .data-table td {
     padding: 10px var(--spacing-md);
     border: var(--border-width) solid var(--color-border);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     height: 44px;
 }
@@ -54,6 +54,15 @@
     text-align: left;
     border-bottom: var(--border-width-thick) solid var(--color-border);
     position: relative;
+    /* sticky 헤더가 스크롤 행 위로 확실히 올라오도록 */
+    background-color: var(--color-background);
+    z-index: 6;
+}
+
+/* 일부 브라우저에서 thead sticky만으로 겹침이 생겨 th도 sticky로 고정 */
+.data-table thead th {
+    position: sticky;
+    top: 0;
 }
 
 .data-table tbody tr {
@@ -308,6 +317,12 @@
 
 .nested-data-table tbody tr:hover {
     background-color: #f1f1f1;
+}
+
+/* 연결 체인 하이라이트(같은 값은 같은 색) - 셀(td) 자체 배경 */
+.nested-data-table td.link-highlight-cell {
+    background: var(--hl-bg, #eef2ff);
+    font-weight: 700;
 }
 
 /* 플랫폼별 행 색상 */
