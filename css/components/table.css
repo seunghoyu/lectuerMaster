@@ -145,11 +145,31 @@
     font-weight: 500;
 }
 
+/* ISBN이 길거나 여러 줄이어도 컬럼 폭 고정 */
+.data-table th.isbn-column,
+.data-table td.isbn-column {
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+}
+
+.data-table td.isbn-column {
+    line-height: 1.2;
+    height: auto; /* 여러 ISBN 줄바꿈 허용 */
+}
+
 .book-title-header,
 .sap-code-header {
     background-color: #f5f3ff !important;
     color: #5b21b6;
     font-weight: 500;
+}
+
+.data-table th.sap-code-header,
+.data-table td.sap-code-cell {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
 }
 
 .book-title-cell,

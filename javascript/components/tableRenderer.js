@@ -159,6 +159,16 @@ export class TableRenderer {
             }
             
             let cellValue = item[column.key] || '';
+
+            // ISBN이 여러 개인 경우(쉼표 구분) 줄바꿈으로 표시 (쉼표는 제거)
+            if (column.key === 'ISBN' && cellValue) {
+                const parts = String(cellValue)
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                    .map(v => this.escapeHtml(v));
+                cellValue = parts.join('<br>');
+            }
             
             if (column.type === 'date' && cellValue) {
                 cellValue = DateFormatter.format(cellValue);
