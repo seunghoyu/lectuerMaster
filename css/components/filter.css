@@ -32,14 +32,24 @@
     opacity: 1;
 }
 
-.filter-icon {
+/* 🔍 아이콘(이모지) */
+.filter-emoji {
     font-size: var(--font-size-xs);
+    line-height: 1;
     color: var(--color-text-secondary);
 }
 
-.filter-icon-container.active .filter-icon {
-    color: #3b82f6;
+/* Twemoji가 <img>로 변환하는 경우 크기 고정(xs) */
+.filter-icon-container img.emoji {
+    width: 12px;
+    height: 12px;
+    vertical-align: middle;
+}
+
+.filter-icon-container.active .filter-emoji,
+.filter-icon-container.active img.emoji {
     opacity: 1;
+    filter: saturate(1.2);
 }
 
 /* 필터 드롭다운 */
@@ -62,6 +72,24 @@
 .filter-search {
     padding: var(--spacing-sm);
     border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.filter-counts {
+    padding: 6px var(--spacing-sm);
+    border-bottom: var(--border-width) solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.filter-empty {
+    padding: 10px var(--spacing-sm);
+    border-top: var(--border-width) solid var(--color-border);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-align: center;
 }
 
 .filter-search-input {

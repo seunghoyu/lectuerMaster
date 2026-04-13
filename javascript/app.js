@@ -482,6 +482,11 @@ class LectureMasterApp {
         const totalPages = DataService.calculateTotalPages(filteredData.length, this.itemsPerPage);
         
         TableRenderer.renderToDOM(this.tableContainer, pageData, startIndex, this.bookMap, this.currentListInfo);
+
+        // Twemoji 렌더링 (테이블 헤더의 🔍 등)
+        if (window.twemoji) {
+            window.twemoji.parse(this.tableContainer, { folder: 'svg', ext: '.svg' });
+        }
         
         const existingPagination = this.tableContainer.querySelector('.pagination');
         if (existingPagination) existingPagination.remove();
@@ -731,7 +736,8 @@ class LectureMasterApp {
             columnKey,
             uniqueValues,
             selectedValues,
-            (colKey, selected) => this.applyFilter(colKey, selected)
+            (colKey, selected) => this.applyFilter(colKey, selected),
+            (query, colKey) => FilterRenderer.filterValues(colKey, query)
         );
     }
     

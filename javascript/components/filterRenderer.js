@@ -11,7 +11,7 @@ export class FilterRenderer {
     static renderFilterIcon(columnKey) {
         return `
             <div class="filter-icon-container" data-column-key="${columnKey}">
-                <i class="fa-solid fa-filter filter-icon"></i>
+                <span class="filter-emoji" aria-label="검색" title="검색">🔍</span>
             </div>
         `;
     }
@@ -29,6 +29,10 @@ export class FilterRenderer {
         const selectAllId = `filter-select-all-${columnKey}`;
         const clearFilterId = `filter-clear-${columnKey}`;
         const applyFilterId = `filter-apply-${columnKey}`;
+        const cancelFilterId = `filter-cancel-${columnKey}`;
+        const totalCountId = `filter-total-count-${columnKey}`;
+        const selectedCountId = `filter-selected-count-${columnKey}`;
+        const emptyStateId = `filter-empty-${columnKey}`;
         
         // 선택 상태 확인
         const allSelected = uniqueValues.length > 0 && uniqueValues.every(v => selectedValues.has(v));
@@ -57,6 +61,10 @@ export class FilterRenderer {
                         autocomplete="off"
                     >
                 </div>
+                <div class="filter-counts">
+                    <span class="filter-count-total" id="${totalCountId}">총 ${uniqueValues.length.toLocaleString()}개</span>
+                    <span class="filter-count-selected" id="${selectedCountId}">${selectedValues.size.toLocaleString()}개 선택됨</span>
+                </div>
                 <div class="filter-actions">
                     <label class="filter-select-all-item">
                         <input type="checkbox" id="${selectAllId}" ${allSelected ? 'checked' : ''} ${someSelected ? 'indeterminate' : ''}>
@@ -67,8 +75,9 @@ export class FilterRenderer {
                 <div class="filter-values" id="${valuesListId}">
                     ${valuesHtml}
                 </div>
+                <div class="filter-empty" id="${emptyStateId}" style="display:none;">검색 결과 없음</div>
                 <div class="filter-footer">
-                    <button class="filter-action-btn filter-cancel-btn" id="filter-cancel-${columnKey}">취소</button>
+                    <button class="filter-action-btn filter-cancel-btn" id="${cancelFilterId}">취소</button>
                     <button class="filter-action-btn filter-apply-btn" id="${applyFilterId}">적용</button>
                 </div>
             </div>
@@ -121,38 +130,57 @@ export class FilterRenderer {
         
         const dropdown = document.getElementById(`filter-dropdown-${columnKey}`);
         if (!dropdown) return;
+
+        // Twemoji 렌더링 (드롭다운 내부)
+        if (window.twemoji) {
+            window.twemoji.parse(dropdown, { folder: 'svg', ext: '.svg' });
+        }
+
+        const valuesList = document.getElementById(`filter-values-${columnKey}`);
+        const selectAll = document.getElementById(`filter-select-all-${columnKey}`);
+        const totalCountEl = document.getElementById(`filter-total-count-${columnKey}`);
+        const selectedCountEl = document.getElementById(`filter-selected-count-${columnKey}`);
+        const emptyStateEl = document.getElementById(`filter-empty-${columnKey}`);
+
+        const getAllCheckboxes = () => valuesList ? Array.from(valuesList.querySelectorAll('input[type="checkbox"]')) : [];
+        const getCheckedValues = () => {
+            const set = new Set();
+            if (!valuesList) return set;
+            const checked = valuesList.querySelectorAll('input[type="checkbox"]:checked');
+            checked.forEach(cb => set.add(cb.value));
+            return set;
+        };
+
+        const updateCounts = () => {
+            if (totalCountEl) totalCountEl.textContent = `총 ${uniqueValues.length.toLocaleString()}개`;
+            if (selectedCountEl) selectedCountEl.textContent = `${getCheckedValues().size.toLocaleString()}개 선택됨`;
+        };
         
         // 검색 입력 이벤트
         const searchInput = document.getElementById(`filter-search-${columnKey}`);
         if (searchInput && onSearch) {
             searchInput.addEventListener('input', (e) => {
-                const query = e.target.value.trim().toLowerCase();
+                const query = String(e.target.value ?? '').toLowerCase(); // 공백 포함 검색 허용
                 onSearch(query, columnKey);
             });
         }
         
         // 모두 선택 체크박스
-        const selectAll = document.getElementById(`filter-select-all-${columnKey}`);
         if (selectAll) {
             selectAll.addEventListener('change', (e) => {
                 const checked = e.target.checked;
-                const valuesList = document.getElementById(`filter-values-${columnKey}`);
-                if (valuesList) {
-                    const checkboxes = valuesList.querySelectorAll('input[type="checkbox"]');
-                    checkboxes.forEach(cb => {
-                        cb.checked = checked;
-                    });
-                }
+                const checkboxes = getAllCheckboxes();
+                checkboxes.forEach(cb => { cb.checked = checked; });
+                updateCounts();
             });
         }
         
         // 개별 체크박스 변경 시 "모두 선택" 상태 업데이트
-        const valuesList = document.getElementById(`filter-values-${columnKey}`);
         if (valuesList && selectAll) {
             valuesList.addEventListener('change', (e) => {
                 if (e.target.type === 'checkbox') {
-                    const checkboxes = valuesList.querySelectorAll('input[type="checkbox"]');
-                    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                    const checkboxes = getAllCheckboxes();
+                    const checkedCount = checkboxes.filter(cb => cb.checked).length;
                     
                     if (checkedCount === 0) {
                         selectAll.checked = false;
@@ -164,6 +192,7 @@ export class FilterRenderer {
                         selectAll.checked = false;
                         selectAll.indeterminate = true;
                     }
+                    updateCounts();
                 }
             });
         }
@@ -173,10 +202,8 @@ export class FilterRenderer {
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 if (valuesList) {
-                    const checkboxes = valuesList.querySelectorAll('input[type="checkbox"]');
-                    checkboxes.forEach(cb => {
-                        cb.checked = false;
-                    });
+                    const checkboxes = getAllCheckboxes();
+                    checkboxes.forEach(cb => { cb.checked = false; });
                 }
                 if (selectAll) {
                     selectAll.checked = false;
@@ -185,29 +212,30 @@ export class FilterRenderer {
                 if (searchInput) {
                     searchInput.value = '';
                 }
+
+                if (emptyStateEl) emptyStateEl.style.display = 'none';
+                if (valuesList) {
+                    valuesList.querySelectorAll('.filter-value-item').forEach(item => { item.style.display = ''; });
+                }
+                updateCounts();
             });
         }
-        
-        // 취소 버튼
+
+        updateCounts();
+
+        // 취소 버튼 (적용 없이 닫기)
         const cancelBtn = document.getElementById(`filter-cancel-${columnKey}`);
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
                 dropdown.remove();
             });
         }
-        
-        // 적용 버튼
+
+        // 적용 버튼 (체크된 값으로 필터 반영)
         const applyBtn = document.getElementById(`filter-apply-${columnKey}`);
         if (applyBtn && onApply) {
             applyBtn.addEventListener('click', () => {
-                const selectedValuesSet = new Set();
-                if (valuesList) {
-                    const checkboxes = valuesList.querySelectorAll('input[type="checkbox"]:checked');
-                    checkboxes.forEach(cb => {
-                        selectedValuesSet.add(cb.value);
-                    });
-                }
-                onApply(columnKey, selectedValuesSet);
+                onApply(columnKey, getCheckedValues());
                 dropdown.remove();
             });
         }
@@ -244,15 +272,37 @@ export class FilterRenderer {
         if (!valuesList) return;
         
         const items = valuesList.querySelectorAll('.filter-value-item');
-        const lowerQuery = query.toLowerCase();
+        const dropdown = document.getElementById(`filter-dropdown-${columnKey}`);
+        const emptyStateEl = document.getElementById(`filter-empty-${columnKey}`);
+        const lowerQuery = String(query ?? '').toLowerCase();
+
+        // 스크롤 위치 유지
+        const prevScrollTop = valuesList.scrollTop;
         
+        let visibleCount = 0;
         items.forEach(item => {
             const text = item.textContent.trim().toLowerCase();
             if (text.includes(lowerQuery)) {
                 item.style.display = '';
+                visibleCount += 1;
             } else {
                 item.style.display = 'none';
             }
         });
+
+        valuesList.scrollTop = prevScrollTop;
+
+        // 검색 결과 없음 처리
+        if (emptyStateEl) {
+            emptyStateEl.style.display = visibleCount === 0 ? '' : 'none';
+        } else if (dropdown) {
+            // 구버전 드롭다운 호환: emptyState가 없으면 생성
+            const existing = dropdown.querySelector('.filter-empty');
+            if (!existing) {
+                dropdown.insertAdjacentHTML('beforeend', `<div class="filter-empty" id="filter-empty-${columnKey}" style="display:${visibleCount === 0 ? '' : 'none'};">검색 결과 없음</div>`);
+            } else {
+                existing.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        }
     }
 }
