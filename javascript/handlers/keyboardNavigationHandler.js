@@ -11,6 +11,9 @@ export class KeyboardNavigationHandler {
         this.focusedCellIndex = -1;
         this.isMultiSelectMode = false;
         this.multiSelectStartCell = null;
+
+        // Ctrl+C 시 copy 이벤트로 전달할 버퍼
+        this._pendingCopyText = '';
     }
     
     /**
@@ -107,6 +110,18 @@ export class KeyboardNavigationHandler {
                     this.resetMultiSelectMode();
                     this.handleSingleNavigation(event.key);
                 }
+            }
+        });
+
+        // 클립보드 복사 이벤트 (파일/HTTP 환경에서도 안정적으로 동작)
+        document.addEventListener('copy', (event) => {
+            if (!this._pendingCopyText) return;
+            try {
+                event.preventDefault();
+                event.clipboardData?.setData('text/plain', this._pendingCopyText);
+                event.clipboardData?.setData('text/tab-separated-values', this._pendingCopyText);
+            } finally {
+                this._pendingCopyText = '';
             }
         });
     }
@@ -387,37 +402,55 @@ export class KeyboardNavigationHandler {
      */
     copySelectedCells() {
         const selectedCellsArray = Array.from(this.table.querySelectorAll('.selected-cell'));
-        
+
+        // 선택된 셀이 없으면 현재 셀만 복사
         if (selectedCellsArray.length === 0) {
-            // 선택된 셀이 없으면 현재 셀만 복사
             if (this.currentCell) {
                 const text = this.currentCell.textContent.trim();
                 this.copyToClipboard(text);
             }
             return;
         }
-        
-        // 선택된 셀들을 행별로 그룹화
+
+        // 선택 범위를 직사각형으로 계산해서 엑셀/스프레드시트 호환 TSV 생성
+        const tbody = this.table.querySelector('tbody');
+        if (!tbody) return;
+
+        const b2bRows = Array.from(tbody.querySelectorAll('tr.b2b-row'));
+        const rowIndexMap = new Map(b2bRows.map((r, i) => [r, i]));
+
+        const positions = selectedCellsArray
+            .map(cell => {
+                const row = cell.parentElement;
+                if (!rowIndexMap.has(row)) return null; // 상세행 등 제외
+                return {
+                    cell,
+                    r: rowIndexMap.get(row),
+                    c: Array.from(row.children).indexOf(cell)
+                };
+            })
+            .filter(Boolean);
+
+        if (positions.length === 0) return;
+
+        const minR = Math.min(...positions.map(p => p.r));
+        const maxR = Math.max(...positions.map(p => p.r));
+        const minC = Math.min(...positions.map(p => p.c));
+        const maxC = Math.max(...positions.map(p => p.c));
+
+        const cellMap = new Map(positions.map(p => [`${p.r}:${p.c}`, p.cell]));
         const rowsData = [];
-        const processedRows = new Set();
-        const selectedCellsSet = new Set(selectedCellsArray);
-        
-        selectedCellsArray.forEach(cell => {
-            const row = cell.parentElement;
-            if (!processedRows.has(row)) {
-                processedRows.add(row);
-                const rowCells = Array.from(row.children).filter(c => 
-                    selectedCellsSet.has(c) && !c.querySelector('input[type="checkbox"]')
-                );
-                
-                if (rowCells.length > 0) {
-                    const cellTexts = rowCells.map(c => c.textContent.trim());
-                    rowsData.push(cellTexts);
-                }
+        for (let r = minR; r <= maxR; r++) {
+            const row = b2bRows[r];
+            const rowCells = [];
+            for (let c = minC; c <= maxC; c++) {
+                const cell = cellMap.get(`${r}:${c}`);
+                const text = cell ? cell.textContent.trim() : '';
+                rowCells.push(text);
             }
-        });
-        
-        // 탭으로 구분된 텍스트 생성
+            rowsData.push(rowCells);
+        }
+
         const text = rowsData.map(row => row.join('\t')).join('\n');
         this.copyToClipboard(text);
     }
@@ -427,21 +460,31 @@ export class KeyboardNavigationHandler {
      * @param {string} text - 복사할 텍스트
      */
     async copyToClipboard(text) {
+        // 1) copy 이벤트 기반(가장 호환성 좋음)
+        this._pendingCopyText = text;
+        const ok = document.execCommand('copy');
+        if (ok) return;
+
+        // 2) Clipboard API (보안 컨텍스트에서만)
         try {
             await navigator.clipboard.writeText(text);
-            console.log('복사 완료:', text);
+            return;
         } catch (err) {
             console.error('복사 실패:', err);
-            // Fallback: 임시 textarea 사용
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
         }
+
+        // 3) 최종 fallback: 임시 textarea로 선택 후 copy
+        this._pendingCopyText = '';
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        textarea.setAttribute('readonly', 'true');
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
     }
     
     /**

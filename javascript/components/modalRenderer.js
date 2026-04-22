@@ -82,9 +82,12 @@ export class ModalRenderer {
                                     placeholder="Ch_L_00046539	30,000&#10;Ch_L_00001262	23,000&#10;Ch_L_00008084	23,000"
                                     rows="8"
                                 ></textarea>
-                                <button type="button" class="btn-execute" id="executePriceMappingBtn">
-                                    <i class="fa-solid fa-play"></i> 실행
-                                </button>
+                                <div class="inline-action-row">
+                                    <button type="button" class="btn-execute" id="executePriceMappingBtn">
+                                        <i class="fa-solid fa-play"></i> 실행
+                                    </button>
+                                    <span id="priceMappingStatus" class="inline-status" aria-live="polite"></span>
+                                </div>
                             </div>
                             
                             <div class="form-section">
@@ -102,15 +105,12 @@ export class ModalRenderer {
                                             type="text" 
                                             id="saveModalShareInput" 
                                             class="share-input" 
-                                            placeholder="팀/이름/아이디를 입력하세요"
+                                            placeholder="팀/이름/아이디를 입력하세요 (저장 시 자동 공유)"
                                             autocomplete="off"
                                         />
                                         <div class="share-input-hint">예: 개발팀/김개발/kimdev</div>
                                         <div class="autocomplete-dropdown" id="saveModalAutocompleteDropdown"></div>
                                     </div>
-                                    <button class="btn-share" id="shareFromSaveBtn">
-                                        <i class="fa-solid fa-share-nodes"></i> 공유
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -136,7 +136,7 @@ export class ModalRenderer {
                             </div>
                             
                             <div class="form-section" id="priceMappingLogSection" style="display: none;">
-                                <div class="form-section-title">파싱 결과 로그</div>
+                                <div class="form-section-title">매핑 결과 로그</div>
                                 <div class="price-mapping-log-container">
                                     <pre id="priceMappingLog" class="price-mapping-log"></pre>
                                 </div>

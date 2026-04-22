@@ -93,9 +93,12 @@ Ch_L_00001262	23,000</code></pre>
                                 placeholder="강의코드와 금액을 입력하세요 (예: Ch_L_00001234 10000)"
                                 rows="8"
                             ></textarea>
-                            <button type="button" class="btn-execute" id="executeRegisterPriceMappingBtn">
-                                <i class="fa-solid fa-play"></i> 파싱 실행
-                            </button>
+                            <div class="inline-action-row">
+                                <button type="button" class="btn-execute" id="executeRegisterPriceMappingBtn">
+                                    <i class="fa-solid fa-play"></i> 실행
+                                </button>
+                                <span id="registerPriceMappingStatus" class="inline-status" aria-live="polite"></span>
+                            </div>
                             </div>
                             
                             <div class="form-section">
@@ -128,7 +131,7 @@ Ch_L_00001262	23,000</code></pre>
                         
                         <div class="modal-body-right">
                             <div class="form-section price-mapping-log-section" id="registerPriceMappingLogSection" style="display: none;">
-                                <div class="form-section-title">파싱 결과 로그</div>
+                                <div class="form-section-title">매핑 결과 로그</div>
                                 <div class="result-log-container">
                                     <pre id="registerPriceMappingLog" class="result-log"></pre>
                                 </div>

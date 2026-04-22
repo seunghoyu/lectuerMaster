@@ -629,6 +629,24 @@
     background: #1d4ed8;
 }
 
+/* 인당과금 실행 버튼 옆 상태 메시지 */
+.inline-action-row {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.inline-status {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.2;
+}
+
+.inline-status.error {
+    color: #dc2626;
+    font-weight: 600;
+}
+
 /* 금액 매핑 로그 영역 */
 .price-mapping-log-container {
     background-color: #1a1a1a;

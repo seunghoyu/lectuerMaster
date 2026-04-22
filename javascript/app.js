@@ -32,7 +32,6 @@ import { PaginationHandler } from './handlers/paginationHandler.js';
 import { KeyboardNavigationHandler } from './handlers/keyboardNavigationHandler.js';
 import { FilterRenderer } from './components/filterRenderer.js';
 import { NestedTableRowHandler } from './handlers/nestedTableRowHandler.js';
-import { OperationsDashboardRenderer } from './components/operationsDashboardRenderer.js';
 
 /**
  * 메인 애플리케이션 클래스
@@ -71,6 +70,9 @@ class LectureMasterApp {
      */
     init() {
         document.addEventListener('DOMContentLoaded', () => {
+            // 대시보드/렌더러에서 전역 참조로 사용
+            window.appInstance = this;
+
             this.tableContainer = document.querySelector('.table-container');
             this.toolbarContainer = document.querySelector('.top-header');
             this.loadLectureData();
@@ -181,9 +183,6 @@ class LectureMasterApp {
      * @returns {string} 메뉴명
      */
     getCurrentMenuName() {
-        if (this.currentListView === 'operations-dashboard') {
-            return '운영 대시보드';
-        }
         if (this.currentDataView === 'excluded') {
             return '제외된 강의리스트';
         }
@@ -243,7 +242,7 @@ class LectureMasterApp {
         const pluginContainer = document.getElementById('pluginBarContainer');
         if (!pluginContainer) return;
         
-        if (this.currentListView === 'dashboard' || this.currentListView === 'operations-dashboard' || this.currentDataView === 'excluded') {
+        if (this.currentListView === 'dashboard' || this.currentDataView === 'excluded') {
             pluginContainer.innerHTML = '';
             return;
         }
@@ -697,12 +696,41 @@ class LectureMasterApp {
         }
         
         parseAndDisplayPriceMapping() {
-            const input = document.getElementById('registerPriceMappingInput').value;
-            const { priceMap, log } = PriceParser.parse(input);
-            
+            const input = document.getElementById('registerPriceMappingInput')?.value || '';
+            const lectureCodesRaw = document.getElementById('registerLectureCodesInput')?.value.trim() || '';
+            const lectureCodes = lectureCodesRaw.split('\n')
+                .map(code => code.replace(/["'\s]/g, ''))
+                .filter(code => code);
+
+            const validCodesSet = new Set(lectureCodes);
+            const parseResult = PriceParser.parsePriceMapping(input, validCodesSet);
+            const log = PriceParser.formatParseLog(parseResult, lectureCodes);
+            const priceMap = parseResult.priceMap || {};
+
             const logContainer = document.getElementById('registerPriceMappingLog');
-            logContainer.textContent = log;
-            logContainer.dataset.priceMap = JSON.stringify(priceMap);
+            if (logContainer) {
+                logContainer.textContent = log;
+                logContainer.dataset.priceMap = JSON.stringify(priceMap);
+            }
+
+            const statusEl = document.getElementById('registerPriceMappingStatus');
+            if (statusEl) {
+                const hasInput = !!input.trim();
+                if (!hasInput) {
+                    statusEl.textContent = '입력된 데이터가 없습니다.';
+                    statusEl.classList.add('error');
+                } else if (parseResult.errors && parseResult.errors.some(e => e.includes('유효하지 않은 강의코드'))) {
+                    const invalidCount = parseResult.errors.filter(e => e.includes('유효하지 않은 강의코드')).length;
+                    statusEl.textContent = `유효하지 않은 강의코드가 포함되어 있습니다(${invalidCount}개).`;
+                    statusEl.classList.add('error');
+                } else if (parseResult.stats?.success > 0) {
+                    statusEl.textContent = `매핑 완료(성공 ${parseResult.stats.success}개/실패 ${parseResult.stats.fail}개)`;
+                    statusEl.classList.remove('error');
+                } else {
+                    statusEl.textContent = '매핑에 실패했습니다. 입력 형식을 확인해주세요.';
+                    statusEl.classList.add('error');
+                }
+            }
         }
     
         onSelectionChange() {        this.renderToolbar();
@@ -758,7 +786,7 @@ class LectureMasterApp {
         
         ModalRenderer.renderSaveModalToDOM(document.body, this.selectedLectures.size, categoryCounts, selectedLecturesData);
         ModalRenderer.showModal();
-        this.setupSaveModalShareAutocomplete();
+        this.bindSaveModalEvents();
     }
     
     getSelectedLecturesData() {
@@ -853,6 +881,7 @@ class LectureMasterApp {
                     StorageService.shareLectureList(listName, sharedWith);
                 } catch (shareError) {
                     console.error('공유 오류:', shareError);
+                    alert(`리스트 저장 성공. 공유 실패: ${shareError.message}`);
                 }
             }
             alert(`"${listName}" 리스트가 저장되었습니다.`);
@@ -883,14 +912,6 @@ class LectureMasterApp {
             </ul>
         `;
         sidebarMenu.appendChild(b2bListSection);
-
-        // 운영 대시보드
-        const operationsDashboardItem = document.createElement('li');
-        operationsDashboardItem.className = 'menu-item operations-dashboard-menu-item';
-        operationsDashboardItem.setAttribute('data-view-type', 'operations-dashboard');
-        operationsDashboardItem.innerHTML = `<a href="#"><i class="fa-solid fa-server"></i><span class="link-text">운영 대시보드</span></a>`;
-        operationsDashboardItem.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this.showOperationsDashboard(); });
-        sidebarMenu.appendChild(operationsDashboardItem);
         
 
         const b2bToggle = b2bListSection.querySelector('#b2bListToggle');
@@ -1004,10 +1025,9 @@ class LectureMasterApp {
         this.updateSidebarActiveState(listName);
         
         const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) tableContainer.style.display = 'flex';
         const dashboardContainer = document.querySelector('.dashboard-container');
         if (dashboardContainer) dashboardContainer.style.display = 'none';
-        const operationsDashboardContainer = document.querySelector('.operations-dashboard-container');
-        if (operationsDashboardContainer) operationsDashboardContainer.style.display = 'none';
         
         this.currentPageNumber = 1;
         this.renderTable(this.currentPageNumber);
@@ -1037,8 +1057,7 @@ class LectureMasterApp {
         if (tableContainer) tableContainer.style.display = 'flex';
         const dashboardContainer = document.querySelector('.dashboard-container');
         if (dashboardContainer) dashboardContainer.style.display = 'none';
-        const operationsDashboardContainer = document.querySelector('.operations-dashboard-container');
-        if (operationsDashboardContainer) operationsDashboardContainer.style.display = 'none';        this.currentPageNumber = 1;
+        this.currentPageNumber = 1;
         this.renderTable(this.currentPageNumber);
         this.renderToolbar();
     }
@@ -1061,8 +1080,6 @@ class LectureMasterApp {
         if (tableContainer) tableContainer.style.display = 'flex';
         const dashboardContainer = document.querySelector('.dashboard-container');
         if (dashboardContainer) dashboardContainer.style.display = 'none';
-        const operationsDashboardContainer = document.querySelector('.operations-dashboard-container');
-        if (operationsDashboardContainer) operationsDashboardContainer.style.display = 'none';
 
         this.currentPageNumber = 1;
         this.renderTable(this.currentPageNumber);
@@ -1076,9 +1093,6 @@ class LectureMasterApp {
         
         const tableContainer = document.querySelector('.table-container');
         if (tableContainer) tableContainer.style.display = 'none';
-
-        const operationsDashboardContainer = document.querySelector('.operations-dashboard-container');
-        if (operationsDashboardContainer) operationsDashboardContainer.style.display = 'none';
         
         this.renderDashboard();
     }
@@ -1101,36 +1115,317 @@ class LectureMasterApp {
         if (pluginContainer) pluginContainer.innerHTML = '';
     }
 
-    showOperationsDashboard() {
-        this.currentListView = 'operations-dashboard';
-        HeaderRenderer.updateMenuNameAndCount('운영 대시보드', 0);
-        this.updateSidebarActiveState('operations-dashboard');
-        
-        const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) tableContainer.style.display = 'none';
-        
-        const dashboardContainer = document.querySelector('.dashboard-container');
-        if (dashboardContainer) dashboardContainer.style.display = 'none';
+    /**
+     * 자동완성 입력을 설정합니다.
+     * - 팀/이름/아이디 검색 지원
+     * - '팀 전체' 옵션 선택 시 team/* 형식으로 값 설정
+     */
+    setupAutocomplete(inputEl, dropdownId, onSelect) {
+        if (!inputEl) return;
 
-        this.renderOperationsDashboard();
+        const dropdown = document.getElementById(dropdownId);
+        if (!dropdown) return;
+
+        const allUsers = UserService.getUsersSync();
+        let filteredUsers = [];
+        let selectedIndex = -1;
+
+        const normalize = (s) => (s || '').toString().toLowerCase();
+
+        const filterUsers = (query) => {
+            const q = normalize(query);
+            if (!q) return [];
+            return allUsers
+                .filter(u => {
+                    const team = normalize(u.team);
+                    const name = normalize(u.name);
+                    const id = normalize(u.id);
+                    return team.includes(q) || name.includes(q) || id.includes(q);
+                })
+                .slice(0, 20);
+        };
+
+        const render = (query) => {
+            filteredUsers = filterUsers(query);
+            ShareModalRenderer.updateAutocomplete(filteredUsers, query, selectedIndex, dropdown, allUsers);
+        };
+
+        const commitSelection = (type, payload) => {
+            if (type === 'team') {
+                const teamName = payload;
+                inputEl.value = `${teamName}/*`;
+                if (typeof onSelect === 'function') onSelect({ team: teamName, type: 'team' });
+            } else {
+                const user = payload;
+                inputEl.value = `${user.team}/${user.name}/${user.id}`;
+                if (typeof onSelect === 'function') onSelect(user);
+            }
+            dropdown.classList.remove('show');
+            selectedIndex = -1;
+        };
+
+        inputEl.addEventListener('input', () => {
+            selectedIndex = -1;
+            render(inputEl.value.trim());
+        });
+
+        inputEl.addEventListener('keydown', (e) => {
+            const isOpen = dropdown.classList.contains('show');
+            const items = Array.from(dropdown.querySelectorAll('.autocomplete-item'));
+
+            if (e.key === 'Escape') {
+                dropdown.classList.remove('show');
+                selectedIndex = -1;
+                return;
+            }
+
+            if (!isOpen || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                render(inputEl.value.trim());
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                render(inputEl.value.trim());
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const selectedItem = items[selectedIndex];
+                if (!selectedItem) return;
+
+                const itemType = selectedItem.dataset.type;
+                if (itemType === 'team') {
+                    commitSelection('team', selectedItem.dataset.team);
+                } else {
+                    const userId = selectedItem.dataset.userId;
+                    const user = allUsers.find(u => u.id === userId);
+                    if (user) commitSelection('user', user);
+                }
+            }
+        });
+
+        dropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.autocomplete-item');
+            if (!item) return;
+
+            const itemType = item.dataset.type;
+            if (itemType === 'team') {
+                commitSelection('team', item.dataset.team);
+            } else {
+                const userId = item.dataset.userId;
+                const user = allUsers.find(u => u.id === userId);
+                if (user) commitSelection('user', user);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== inputEl && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
     }
-    
-    renderOperationsDashboard() {
-        const workspace = document.querySelector('.workspace');
-        if (!workspace) return;
-        
-        let dashboardContainer = workspace.querySelector('.operations-dashboard-container');
-        if (!dashboardContainer) {
-            dashboardContainer = document.createElement('div');
-            dashboardContainer.className = 'operations-dashboard-container';
-            workspace.appendChild(dashboardContainer);
+
+    showShareModal(listName) {
+        ShareModalRenderer.renderToDOM(document.body, listName);
+        ShareModalRenderer.showModal();
+        this.bindShareModalEvents(listName);
+    }
+
+    bindShareModalEvents(listName) {
+        const overlay = document.getElementById('shareModalOverlay');
+        if (!overlay) return;
+
+        const shareInput = document.getElementById('shareInput');
+        if (shareInput) {
+            this.setupAutocomplete(shareInput, 'autocompleteDropdown', () => {});
         }
-        
-        dashboardContainer.style.display = 'block';
-        OperationsDashboardRenderer.renderToDOM(dashboardContainer, this.allLectureData, UnifiedLcmsService.getAllData());
-        
-        const pluginContainer = document.getElementById('pluginBarContainer');
-        if (pluginContainer) pluginContainer.innerHTML = '';
+
+        overlay.addEventListener('click', (e) => {
+            const targetId = e.target.id;
+            const closestButtonId = e.target.closest('button')?.id;
+
+            if (closestButtonId === 'closeShareModal' || closestButtonId === 'cancelShareBtn' || targetId === 'shareModalOverlay') {
+                this.closeShareModal();
+                return;
+            }
+
+            if (closestButtonId === 'confirmShareBtn') {
+                const sharedWith = document.getElementById('shareInput')?.value.trim();
+                if (!sharedWith) return alert('공유 대상을 입력해주세요.');
+
+                try {
+                    StorageService.shareLectureList(listName, sharedWith);
+                    alert('공유가 완료되었습니다.');
+                    this.closeShareModal();
+                } catch (error) {
+                    alert(error.message);
+                }
+            }
+        });
+    }
+
+    closeShareModal() {
+        ShareModalRenderer.hideModal();
+        setTimeout(() => ShareModalRenderer.removeModal(), 300);
+    }
+
+    showSharedUsersModal(listName) {
+        SharedUsersModalRenderer.renderToDOM(document.body, listName);
+        SharedUsersModalRenderer.showModal();
+        this.bindSharedUsersModalEvents();
+    }
+
+    bindSharedUsersModalEvents() {
+        const overlay = document.getElementById('sharedUsersModalOverlay');
+        if (!overlay) return;
+
+        overlay.addEventListener('click', (e) => {
+            const targetId = e.target.id;
+            const closestButtonId = e.target.closest('button')?.id;
+            if (closestButtonId === 'closeSharedUsersModal' || closestButtonId === 'closeSharedUsersBtn' || targetId === 'sharedUsersModalOverlay') {
+                this.closeSharedUsersModal();
+            }
+        });
+    }
+
+    closeSharedUsersModal() {
+        SharedUsersModalRenderer.hideModal();
+        setTimeout(() => SharedUsersModalRenderer.removeModal(), 300);
+    }
+
+    bindSaveModalEvents() {
+        const overlay = document.getElementById('saveModalOverlay');
+        if (!overlay) return;
+
+        const shareInput = document.getElementById('saveModalShareInput');
+        if (shareInput) {
+            this.setupAutocomplete(shareInput, 'saveModalAutocompleteDropdown', () => {});
+        }
+
+        const listNameInput = document.getElementById('listNameInput');
+        const confirmBtn = document.getElementById('confirmSaveBtn');
+
+        const updateContractUI = () => {
+            const contractType = document.querySelector('input[name="contractType"]:checked')?.value || '턴키';
+            const priceMappingSection = document.getElementById('priceMappingSection');
+            const priceMappingLogSection = document.getElementById('priceMappingLogSection');
+            const isPerPerson = contractType === '인당과금';
+            if (priceMappingSection) priceMappingSection.style.display = isPerPerson ? 'block' : 'none';
+            if (priceMappingLogSection) priceMappingLogSection.style.display = isPerPerson ? 'block' : 'none';
+
+            if (!isPerPerson) {
+                delete overlay.dataset.priceMap;
+                const logEl = document.getElementById('priceMappingLog');
+                if (logEl) logEl.textContent = '';
+            }
+        };
+
+        const validate = () => {
+            if (!confirmBtn) return;
+
+            const listName = listNameInput?.value.trim();
+            if (!listName) {
+                confirmBtn.disabled = true;
+                return;
+            }
+
+            const contractType = document.querySelector('input[name="contractType"]:checked')?.value || '턴키';
+            if (contractType !== '인당과금') {
+                confirmBtn.disabled = false;
+                return;
+            }
+
+            const priceMapData = overlay.dataset.priceMap;
+            if (!priceMapData) {
+                confirmBtn.disabled = true;
+                return;
+            }
+
+            try {
+                const priceMap = JSON.parse(priceMapData);
+                const selectedCodes = Array.from(this.selectedLectures);
+                const allMapped = selectedCodes.every(code => priceMap && typeof priceMap[code] === 'number' && priceMap[code] > 0);
+                confirmBtn.disabled = !allMapped;
+            } catch {
+                confirmBtn.disabled = true;
+            }
+        };
+
+        listNameInput?.addEventListener('input', validate);
+
+        overlay.querySelectorAll('input[name="contractType"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                updateContractUI();
+                validate();
+            });
+        });
+
+        const executeBtn = document.getElementById('executePriceMappingBtn');
+        if (executeBtn) {
+            executeBtn.addEventListener('click', () => this.parseAndDisplaySavePriceMapping());
+        }
+
+        overlay.addEventListener('click', (e) => {
+            const targetId = e.target.id;
+            const closestButtonId = e.target.closest('button')?.id;
+
+            if (closestButtonId === 'closeSaveModal' || closestButtonId === 'cancelSaveBtn' || targetId === 'saveModalOverlay') {
+                this.closeSaveModal();
+                return;
+            }
+
+            if (closestButtonId === 'confirmSaveBtn') {
+                this.saveLectureList();
+            }
+        });
+
+        updateContractUI();
+        validate();
+    }
+
+    parseAndDisplaySavePriceMapping() {
+        const overlay = document.getElementById('saveModalOverlay');
+        if (!overlay) return;
+
+        const input = document.getElementById('priceMappingInput')?.value || '';
+        const selectedCodes = Array.from(this.selectedLectures);
+        const validCodesSet = new Set(selectedCodes);
+        const parseResult = PriceParser.parsePriceMapping(input, validCodesSet);
+        const log = PriceParser.formatParseLog(parseResult, selectedCodes);
+        const priceMap = parseResult.priceMap || {};
+
+        const logContainer = document.getElementById('priceMappingLog');
+        if (logContainer) logContainer.textContent = log;
+
+        overlay.dataset.priceMap = JSON.stringify(priceMap || {});
+
+        // 상태 메시지
+        const statusEl = document.getElementById('priceMappingStatus');
+        if (statusEl) {
+            const hasInput = !!input.trim();
+            if (!hasInput) {
+                statusEl.textContent = '입력된 데이터가 없습니다.';
+                statusEl.classList.add('error');
+            } else if (parseResult.errors && parseResult.errors.some(e => e.includes('유효하지 않은 강의코드'))) {
+                const invalidCount = parseResult.errors.filter(e => e.includes('유효하지 않은 강의코드')).length;
+                statusEl.textContent = `유효하지 않은 강의코드가 포함되어 있습니다(${invalidCount}개).`;
+                statusEl.classList.add('error');
+            } else if (parseResult.stats?.success > 0) {
+                statusEl.textContent = `매핑 완료(성공 ${parseResult.stats.success}개/실패 ${parseResult.stats.fail}개)`;
+                statusEl.classList.remove('error');
+            } else {
+                statusEl.textContent = '매핑에 실패했습니다. 입력 형식을 확인해주세요.';
+                statusEl.classList.add('error');
+            }
+        }
+
+        const confirmBtn = document.getElementById('confirmSaveBtn');
+        if (confirmBtn) {
+            // 즉시 재검증
+            const allMapped = selectedCodes.every(code => priceMap && typeof priceMap[code] === 'number' && priceMap[code] > 0);
+            confirmBtn.disabled = !(document.getElementById('listNameInput')?.value.trim() && allMapped);
+        }
     }
 }
 

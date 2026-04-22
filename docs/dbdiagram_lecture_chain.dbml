@@ -1,0 +1,92 @@
+// dbdiagram.io용 DBML
+// 이미지(엑셀) 구조를 그대로 옮긴 초안입니다.
+
+Table b2b_lecture_list {
+  lecture_code varchar [pk, note: "B2B 강의코드(메인)"]
+  category varchar [note: "카테고리"]
+  difficulty varchar [note: "난이도"]
+  classification varchar [note: "분류"]
+  lecture_name varchar [note: "강의명"]
+  lecture_count int [note: "학습차수"]
+  total_runtime varchar [note: "총러닝타임"]
+  lecture_price varchar [note: "강의정가"]
+  book_price varchar [note: "교재정가"]
+  instructor_name varchar [note: "강사명"]
+  book_name varchar [note: "교재명"]
+  lecture_type varchar  [note: "자체/외부강의"]
+  vendor_name varchar [note: "업체명"]
+  graduation_exam_count varchar [note: "졸업시험(문항수)"]
+  lecture_status varchar [note: "강의상태"]
+  b2c_lecture_code varchar [note: "B2C강의코드"]
+  created_at datetime [note: "강의생성일"]
+  video_url_b2b varchar [note: "동영상주소(B2B)"]
+  sample_video_url_b2b varchar [note: "샘플영상URL(B2B)"]
+  business_unit_code varchar [note: "사업부코드"]
+  sap_material_code varchar [note: "SAP자재코드"]
+  isbn varchar [note: "ISBN"]
+}
+
+Table rechamp_operator_lecture_list {
+  lectureCode varchar [pk, note: "[re]챔프 운영자 강의코드"]
+  category1 varchar [note: "분류1"]
+  category2 varchar [note: "분류2"]
+  category3 varchar [note: "분류3"]
+  category4 varchar [note: "분류4"]
+  lectureSource varchar [note: "입점강좌"]
+  settlementType varchar [note: "정산방법"]
+  instructor varchar [note: "선생님"]
+  lectureTitle varchar [note: "강의명"]
+  description text [note: "상세정보"]
+  duration varchar [note: "기간"]
+  costPrice varchar [note: "원가"]
+  retailPrice varchar [note: "시가"]
+  pmp varchar [note: "PMP"]
+  drm varchar [note: "DRM"]
+  status varchar [note: "상태"]
+  createdAt datetime [note: "개설일"]
+  joinedLectureId varchar [note: "조인강의"]
+  textbookInfo varchar [note: "교재정보"]
+  skinId varchar [note: "스킨ID(챔프강의창)"]
+}
+
+Table champ_lecture_window_list {
+  rowNo varchar [pk, note: "챔프강의창 강의코드/번호"]
+  lectureType varchar [note: "강의TYPE"]
+  categoryMain varchar [note: "대분류"]
+  categorySub varchar [note: "중분류"]
+  lectureTitle varchar [note: "강의명"]
+  lectureCount int [note: "커리큘럼"]
+  createdAt datetime [note: "등록일"]
+  status varchar [note: "상태"]
+  usageStatus varchar [note: "관리"]
+  serviceCategory varchar [note: "Admin"]
+  adminLectureCode varchar [note: "Admin_강의코드"]
+  adminLectureTitle varchar [note: "Admin_강의명"]
+  autoUpdate varchar [note: "Admin_자동 업데이트"]
+  skinId varchar [note: "스킨ID"]
+}
+
+Table b2c_course_master {
+  lec_idx varchar [pk, note: "B2C 강좌코드(통합LCMS 포함, 분류별 존재)"]
+  Level01 varchar [note: "Level 1"]
+  Level02 varchar [note: "Level 2"]
+  Level03 varchar [note: "Level 3"]
+  Level04 varchar [note: "Level 4"]
+  lec_name varchar [note: "강좌명"]
+  lec_cnt varchar [note: "강의"]
+  regdate datetime [note: "등록일"]
+  ClassProductionClassify varchar [note: "강좌 제작 주체"]
+  CompanyCCD varchar [note: "강의 수주를 정산 대상 업체"]
+  ClassPrice varchar [note: "강좌정가"]
+  TeacherNameList varchar [note: "선생님"]
+  TakeCourseDays varchar [note: "수강일수"]
+  BookUid varchar [note: "연결 교재"]
+}
+
+// ====== 연결(색상 표시된 키 기준) ======
+Ref: b2b_lecture_list.b2c_lecture_code > rechamp_operator_lecture_list.lectureCode
+Ref: rechamp_operator_lecture_list.skinId > champ_lecture_window_list.skinId
+
+// 챔프 Admin_강의코드 → B2C 강좌코드(통합LCMS 분류일 때 사용)
+Ref: champ_lecture_window_list.adminLectureCode > b2c_course_master.lec_idx
+

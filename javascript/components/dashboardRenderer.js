@@ -103,6 +103,9 @@ export class DashboardRenderer {
                     <button class="card-action-btn btn-secondary" data-action="share" data-list-name="${list.name}" title="공유하기">
                         <i class="fa-solid fa-share-nodes"></i> 공유
                     </button>
+                    <button class="card-action-btn btn-secondary" data-action="sharedUsers" data-list-name="${list.name}" title="공유현황">
+                        <i class="fa-solid fa-users"></i> 공유현황
+                    </button>
                     <button class="card-action-btn btn-danger" data-action="delete" data-list-name="${list.name}" title="리스트 삭제">
                         <i class="fa-solid fa-trash"></i> 삭제
                     </button>
@@ -220,6 +223,11 @@ export class DashboardRenderer {
                     // 공유하기
                     if (window.appInstance) {
                         window.appInstance.showShareModal(listName);
+                    }
+                } else if (action === 'sharedUsers') {
+                    // 공유현황(누구와 공유했는지)
+                    if (window.appInstance) {
+                        window.appInstance.showSharedUsersModal(listName);
                     }
                 } else if (action === 'delete') {
                     // 삭제하기
