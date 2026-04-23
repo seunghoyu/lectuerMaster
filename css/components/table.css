@@ -32,6 +32,12 @@
     border-collapse: collapse;
 }
 
+/* B2C 통합LCMS: Level 컬럼이 좁아져 숫자가 안 보이는 경우 방지 */
+.data-table.b2c-unified-table th.b2c-col-level,
+.data-table.b2c-unified-table td.b2c-col-level {
+    min-width: 4.25rem;
+}
+
 .data-table thead {
     position: sticky;
     top: 0;
@@ -247,6 +253,11 @@
 /* Main table row containing B2B data */
 .b2b-row {
     cursor: default; /* Remove pointer cursor from the main row */
+}
+
+/* B2C 본문 행: 펼침은 토글 아이콘만 (B2B와 동일 UX) */
+.data-table tbody tr.b2c-row {
+    cursor: default;
 }
 
 /* Row that contains the nested table, hidden by default */

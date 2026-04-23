@@ -14,15 +14,17 @@ export class TableRenderer {
      * @param {Object} listInfo - 리스트 정보 (계약유형, priceMap 등)
      * @returns {string} 테이블 HTML 문자열
      */
-    static renderTable(pageData, startIndex, bookMap, listInfo = null) {
+    static renderTable(pageData, startIndex, bookMap, listInfo = null, columnsOverride = null) {
+        const columns = columnsOverride || CONFIG.TABLE_COLUMNS;
+        const tableExtraClass = columnsOverride ? ' b2c-unified-table' : '';
         const tableHtml = `
             <div class="table-scroll-area">
-                <table class="data-table">
+                <table class="data-table${tableExtraClass}">
                     <thead>
-                        ${this.renderTableHeader({}, listInfo)}
+                        ${this.renderTableHeader({}, listInfo, columnsOverride)}
                     </thead>
                     <tbody>
-                        ${this.renderTableBody(pageData, startIndex, bookMap, listInfo)}
+                        ${this.renderTableBody(pageData, startIndex, bookMap, listInfo, columnsOverride)}
                     </tbody>
                 </table>
             </div>
@@ -37,12 +39,17 @@ export class TableRenderer {
      * @param {Object} listInfo - 리스트 정보 (계약유형, priceMap 등)
      * @returns {string} 헤더 HTML 문자열
      */
-    static renderTableHeader(filterableColumns = {}, listInfo = null) {
-        let headerCells = CONFIG.TABLE_COLUMNS.map(column => {
+    static renderTableHeader(filterableColumns = {}, listInfo = null, columnsOverride = null) {
+        const columns = columnsOverride || CONFIG.TABLE_COLUMNS;
+
+        let headerCells = columns.map(column => {
             if (column.type === 'checkbox') {
                 return `<th class="checkbox-cell"><input type="checkbox" id="selectAllCheckbox"></th>`;
             }
-            
+            if (column.type === 'rowToggle') {
+                return `<th class="checkbox-cell"></th>`;
+            }
+
             // 필터 가능한 컬럼인지 확인
             const isFilterable = this.isFilterableColumn(column.key);
             const filterIcon = isFilterable ? FilterRenderer.renderFilterIcon(column.key) : '';
@@ -54,7 +61,8 @@ export class TableRenderer {
             const columnClass = [
                 isFilterable ? 'filterable-column' : '',
                 isSettlementColumn ? 'settlement-column' : '',
-                isIsbnColumn ? 'isbn-column' : ''
+                isIsbnColumn ? 'isbn-column' : '',
+                column.columnClass || ''
             ].filter(Boolean).join(' ');
             
             let headerCellHtml = `
@@ -66,8 +74,8 @@ export class TableRenderer {
                 </th>
             `;
 
-            // ISBN 컬럼 뒤에 교재명과 SAP 자재코드 컬럼 추가
-            if (column.key === 'ISBN') {
+            // ISBN 컬럼 뒤에 교재명과 SAP 자재코드 컬럼 추가 (B2B 기본 테이블에서만)
+            if (!columnsOverride && column.key === 'ISBN') {
                 headerCellHtml += `
                     <th class="book-title-header">
                         <div class="th-content">
@@ -105,7 +113,7 @@ export class TableRenderer {
      */
     static isFilterableColumn(columnKey) {
         // 체크박스와 순번은 필터링하지 않음
-        const nonFilterableKeys = ['checkbox', 'index'];
+        const nonFilterableKeys = ['checkbox', 'index', 'rowToggle'];
         return !nonFilterableKeys.includes(columnKey);
     }
     
@@ -117,9 +125,9 @@ export class TableRenderer {
      * @param {Object} listInfo - 리스트 정보 (계약유형, priceMap 등)
      * @returns {string} 본문 HTML 문자열
      */
-    static renderTableBody(pageData, startIndex, bookMap, listInfo = null) {
+    static renderTableBody(pageData, startIndex, bookMap, listInfo = null, columnsOverride = null) {
         const bodyRows = pageData.map((item, index) => {
-            return this.renderTableRow(item, startIndex + index, bookMap, listInfo);
+            return this.renderTableRow(item, startIndex + index, bookMap, listInfo, columnsOverride);
         }).join('');
         
         return bodyRows;
@@ -133,12 +141,15 @@ export class TableRenderer {
      * @param {Object} listInfo - 리스트 정보 (계약유형, priceMap 등)
      * @returns {string} 행 HTML 문자열
      */
-    static renderTableRow(item, rowNumber, bookMap, listInfo = null) {
-        const lectureId = this.escapeHtml(item['강의코드'] || '');
+    static renderTableRow(item, rowNumber, bookMap, listInfo = null, columnsOverride = null) {
+        const columns = columnsOverride || CONFIG.TABLE_COLUMNS;
+        const isCustom = !!columnsOverride;
+        const rowKey = isCustom ? (item?.lectureId ?? '') : (item?.['강의코드'] ?? '');
+        const lectureId = this.escapeHtml(String(rowKey));
         let cellsHtml = '';
         let isbnCellIndex = -1;
 
-        CONFIG.TABLE_COLUMNS.forEach((column, index) => {
+        columns.forEach((column, index) => {
             if (column.key === 'ISBN') {
                 isbnCellIndex = index;
             }
@@ -149,7 +160,17 @@ export class TableRenderer {
                         <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
                     </svg>
                 </span>`;
+                // 커스텀 테이블에서는 체크박스를 렌더하지 않도록 보호(컬럼 정의에 checkbox가 없다는 전제)
                 cellsHtml += `<td class="checkbox-cell">${toggleIcon}<input type="checkbox" class="row-checkbox" data-lecture-code="${lectureId}"></td>`;
+                return;
+            }
+            if (isCustom && column.type === 'rowToggle') {
+                const toggleIcon = `<span class="toggle-icon" data-lecture-id="${lectureId}" title="상세 보기">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </span>`;
+                cellsHtml += `<td class="checkbox-cell">${toggleIcon}</td>`;
                 return;
             }
             
@@ -158,10 +179,10 @@ export class TableRenderer {
                 return;
             }
             
-            let cellValue = item[column.key] || '';
+            let cellValue = item?.[column.key] ?? '';
 
             // ISBN이 여러 개인 경우(쉼표 구분) 줄바꿈으로 표시 (쉼표는 제거)
-            if (column.key === 'ISBN' && cellValue) {
+            if (!isCustom && column.key === 'ISBN' && cellValue) {
                 const parts = String(cellValue)
                     .split(',')
                     .map(s => s.trim())
@@ -171,7 +192,43 @@ export class TableRenderer {
             }
             
             if (column.type === 'date' && cellValue) {
-                cellValue = DateFormatter.format(cellValue);
+                // B2B 기본은 DateFormatter.format 사용, 커스텀은 YYYY-MM-DD로 정규화
+                if (!isCustom) {
+                    cellValue = DateFormatter.format(cellValue);
+                } else {
+                    try {
+                        const d = new Date(cellValue);
+                        const yyyy = d.getFullYear();
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        cellValue = `${yyyy}-${mm}-${dd}`;
+                    } catch (_) {
+                        cellValue = String(cellValue);
+                    }
+                }
+            }
+
+            if (isCustom && column.type === 'currency' && typeof cellValue === 'number') {
+                cellValue = cellValue.toLocaleString();
+            }
+
+            if (isCustom && column.type === 'array' && Array.isArray(cellValue)) {
+                cellValue = cellValue.map(part => this.escapeHtml(String(part ?? ''))).join(', ');
+            }
+
+            let tdInner;
+            if (isCustom) {
+                if (column.type === 'array') {
+                    tdInner = Array.isArray(item[column.key])
+                        ? cellValue
+                        : this.escapeHtml(String(cellValue ?? ''));
+                } else {
+                    tdInner = this.escapeHtml(
+                        cellValue === null || cellValue === undefined ? '' : String(cellValue)
+                    );
+                }
+            } else {
+                tdInner = cellValue;
             }
             
             const alignClass = column.align === 'left' ? 'text-left' : '';
@@ -184,13 +241,14 @@ export class TableRenderer {
                 alignClass,
                 isSettlementColumn ? 'settlement-cell' : '',
                 isIsbnColumn ? 'isbn-column' : '',
-                statusClass
+                statusClass,
+                column.columnClass || ''
             ].filter(Boolean).join(' ');
             
-            cellsHtml += `<td class="${cellClass}">${cellValue}</td>`;
+            cellsHtml += `<td class="${cellClass}">${tdInner}</td>`;
 
             // ISBN 셀 다음에 교재 정보 셀 추가
-            if (column.key === 'ISBN') {
+            if (!isCustom && column.key === 'ISBN') {
                 const isbnsRaw = item['ISBN'];
                 const isbns = isbnsRaw ? isbnsRaw.split(',').map(s => s.trim()) : [];
                 
@@ -215,10 +273,10 @@ export class TableRenderer {
             }
         });
         
-        let colspan = CONFIG.TABLE_COLUMNS.length + 2; // 교재명, SAP자재코드 추가
+        let colspan = columns.length + (isCustom ? 0 : 2); // 교재명, SAP자재코드 추가(기본 테이블)
 
         // 리스트 정보가 있을 때 인당과금 금액 컬럼 추가
-        if (listInfo && listInfo.contractType === '인당과금' && listInfo.priceMap) {
+        if (!isCustom && listInfo && listInfo.contractType === '인당과금' && listInfo.priceMap) {
             const lectureCode = item['강의코드'] || '';
             const price = listInfo.priceMap[lectureCode];
             const priceDisplay = price ? price.toLocaleString() : '-';
@@ -226,9 +284,9 @@ export class TableRenderer {
             colspan += 1;
         }
         
-        const mainRow = `<tr class="b2b-row" data-lecture-id="${lectureId}">${cellsHtml}</tr>`;
+        const mainRow = `<tr class="${isCustom ? 'b2c-row' : 'b2b-row'}" data-lecture-id="${lectureId}">${cellsHtml}</tr>`;
         const detailsRow = `
-            <tr class="b2c-details-row" style="display: none;" data-details-for="${lectureId}">
+            <tr class="${isCustom ? 'b2c-details-row' : 'b2c-details-row'}" style="display: none;" data-details-for="${lectureId}">
                 <td colspan="${colspan}">
                     <div class="nested-table-container">
                         <p class="loading-message">로딩 중...</p>
@@ -275,13 +333,13 @@ export class TableRenderer {
      * @param {Object} filterableColumns - 필터 가능한 컬럼 정보
      * @param {Object} listInfo - 리스트 정보 (계약유형, priceMap 등)
      */
-    static renderToDOM(container, pageData, startIndex, bookMap, listInfo = null) {
+    static renderToDOM(container, pageData, startIndex, bookMap, listInfo = null, columnsOverride = null) {
         if (!container) {
             console.error('테이블 컨테이너를 찾을 수 없습니다.');
             return;
         }
         
-        const tableHtml = this.renderTable(pageData, startIndex, bookMap, listInfo);
+        const tableHtml = this.renderTable(pageData, startIndex, bookMap, listInfo, columnsOverride);
         container.innerHTML = tableHtml;
     }
 }

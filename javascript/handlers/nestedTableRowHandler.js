@@ -32,6 +32,9 @@ export class NestedTableRowHandler {
         const detailsIcon = event.target.closest('.details-icon');
 
         if (toggleIcon) {
+            if (toggleIcon.closest('tr.b2c-row')) {
+                return;
+            }
             this.handleToggleClick(toggleIcon);
         } else if (detailsIcon) {
             this.handleDetailsClick(detailsIcon);

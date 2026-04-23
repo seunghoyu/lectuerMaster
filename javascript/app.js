@@ -25,6 +25,7 @@ import { SettlementService } from './services/settlementService.js';
 import { AdminLectureService } from './services/adminLectureService.js';
 import { ChampLectureService } from './services/champLectureService.js';
 import { UnifiedLcmsService } from './services/unifiedLcmsService.js';
+import { SearchService } from './services/searchService.js';
 import { CheckboxHandler } from './handlers/checkboxHandler.js';
 import { CellSelectionHandler } from './handlers/cellSelectionHandler.js';
 import { DragScrollHandler } from './handlers/dragScrollHandler.js';
@@ -32,7 +33,9 @@ import { PaginationHandler } from './handlers/paginationHandler.js';
 import { KeyboardNavigationHandler } from './handlers/keyboardNavigationHandler.js';
 import { FilterRenderer } from './components/filterRenderer.js';
 import { NestedTableRowHandler } from './handlers/nestedTableRowHandler.js';
+import { B2CNestedRowHandler } from './handlers/b2cNestedRowHandler.js';
 import { DashboardBulkSettlementController } from './controllers/dashboardBulkSettlementController.js';
+import { B2C_UNIFIED_COLUMNS } from './config/b2cColumns.js';
 
 /**
  * 메인 애플리케이션 클래스
@@ -54,6 +57,8 @@ class LectureMasterApp {
         this.activeFilters = FilterService.initializeFilters(); // 활성 필터 상태
         this.currentListInfo = null; // 현재 로드된 리스트 정보 (계약유형, priceMap 등)
         this.searchQuery = ''; // 검색어
+        this.b2cMissingB2BOnly = false;
+        this.b2cUnifiedData = [];
 
         // 대시보드(카드뷰) 운영업무: 강의료 파일 일괄생성 선택 모드
         this.dashboardBulkSettlement = new DashboardBulkSettlementController({
@@ -69,6 +74,7 @@ class LectureMasterApp {
         this.keyboardNavigationHandler = null;
         this.checkboxHandler = null;
         this.nestedTableRowHandler = null;
+        this.b2cNestedRowHandler = null;
         this.bookMap = new Map();
         
         this.init();
@@ -127,10 +133,10 @@ class LectureMasterApp {
             this.allLectureData = DataService.sortData(dataWithSettlement);
 
             // 데이터를 메인과 제외된 데이터로 분리
-            this.mainLectureData = this.allLectureData.filter(lecture => 
+            this.mainLectureData = this.allLectureData.filter(lecture =>
                 lecture['강의상태'] !== '폐강' && !lecture['강의코드'].includes('daou')
             );
-            this.excludedLectureData = this.allLectureData.filter(lecture => 
+            this.excludedLectureData = this.allLectureData.filter(lecture =>
                 lecture['강의상태'] === '폐강' || lecture['강의코드'].includes('daou')
             );
             
@@ -153,6 +159,200 @@ class LectureMasterApp {
             console.error('데이터 로드 오류:', error);
             alert('데이터를 불러오는 중 오류가 발생했습니다.\n' + error.message);
         }
+    }
+
+    /**
+     * B2C(통합LCMS) 강좌코드 기준으로 연동 체인을 역방향으로 계산합니다.
+     * - B2C 강좌코드(lectureId)
+     *   -> 챔프 강의창 스킨ID(= champLectureId)
+     *   -> re챔프 운영자 강의코드(= lectureCode)
+     *   -> B2B 운영자 강의코드(= 강의코드)
+     */
+    getB2CChain(b2cLectureId) {
+        if (!b2cLectureId) return null;
+
+        const key = String(b2cLectureId);
+        if (!this.b2cChainCache) this.b2cChainCache = new Map();
+        if (this.b2cChainCache.has(key)) return this.b2cChainCache.get(key);
+
+        // 1) 챔프Admin: serviceCategory == '통합LCMS' && adminLectureCode == lectureId 인 champLectureId 수집
+        const adminData = (typeof AdminLectureService?.getAdminLectureData === 'function')
+            ? null
+            : null;
+        // AdminLectureService는 내부 캐시를 갖고 있어 getAdminLectureData()로 배열을 얻을 수 있음
+        // (비동기 호출 없이, 여기서는 캐시가 로드되어 있다는 전제 하에 사용)
+        // 안전을 위해 map이 없으면 빈 처리
+        let skinIds = [];
+        try {
+            // 내부 캐시 접근이 직접 제공되지 않아, getAdminLectureData는 async.
+            // 체인 캐시는 showB2CUnifiedLcms에서 프리컴퓨트하도록 하고,
+            // 여기서는 프리컴퓨트 결과가 있으면 사용.
+            if (this._adminByLcmsCode?.has(key)) {
+                skinIds = this._adminByLcmsCode.get(key);
+            }
+        } catch (_) {
+            skinIds = [];
+        }
+
+        // 2) 챔프강의창: champLectureId -> champ_lecture.rowNo 확인(동일 값일 가능성이 높지만 체인 명시를 위해 유지)
+        const champRowNos = [];
+        for (const sid of skinIds) {
+            const champMatches = ChampLectureService.getAllDataByRowNo(String(sid));
+            if (champMatches && champMatches.length > 0) {
+                for (const cm of champMatches) {
+                    if (cm?.rowNo != null) champRowNos.push(String(cm.rowNo));
+                }
+            } else {
+                // fallback: rowNo == champLectureId 라고 가정
+                champRowNos.push(String(sid));
+            }
+        }
+
+        // 3) re챔프: skinId == champ_lecture.rowNo 인 lectureCode 수집
+        const rechampCodes = [];
+        if (this._rechampBySkinId && champRowNos.length > 0) {
+            for (const rowNo of champRowNos) {
+                const matches = this._rechampBySkinId.get(String(rowNo)) || [];
+                for (const m of matches) {
+                    if (m?.lectureCode) rechampCodes.push(m.lectureCode);
+                }
+            }
+        }
+
+        // 4) B2B: B2C강의코드 == (re)챔프 lectureCode 인 강의코드 수집
+        const rechampCodeSet = new Set(rechampCodes.map(v => String(v)));
+        const b2bCodes = this.allLectureData
+            .filter(r => rechampCodeSet.has(String(r['B2C강의코드'] || '')))
+            .map(r => r['강의코드'])
+            .filter(Boolean);
+
+        const result = {
+            b2cLectureId: key,
+            skinIds: Array.from(new Set(skinIds.map(String))),
+            champRowNos: Array.from(new Set(champRowNos.map(String))),
+            rechampCodes: Array.from(new Set(rechampCodes.map(String))),
+            b2bCodes: Array.from(new Set(b2bCodes.map(String)))
+        };
+
+        this.b2cChainCache.set(key, result);
+        return result;
+    }
+
+    /**
+     * B2C(통합LCMS) 강좌코드 기준 연동 행을 B2B 중첩 테이블과 동일한 형태로 만듭니다.
+     * 표시 순서: 통합LCMS → 챔프강의창 → (re)챔프스터디 → B2B
+     */
+    getB2CRelatedRowsForNestedTable(b2cLectureId) {
+        if (!b2cLectureId) return [];
+
+        const key = String(b2cLectureId);
+        const chain = this.getB2CChain(key);
+        if (!chain) return [];
+
+        const lcmsRows = [];
+        const champRows = [];
+        const rechampRows = [];
+        const b2bRows = [];
+
+        const seen = {
+            lcms: new Set(),
+            champ: new Set(),
+            rechamp: new Set(),
+            b2b: new Set()
+        };
+
+        const addLcms = (m) => {
+            const id = String(m?.lectureId || '');
+            if (!id || seen.lcms.has(id)) return;
+            seen.lcms.add(id);
+            lcmsRows.push({ platform: '통합LCMS', ...m });
+        };
+
+        const addChamp = (champMatch, champAdmin) => {
+            const ro = String(champMatch?.rowNo || '');
+            if (!ro || seen.champ.has(ro)) return;
+            seen.champ.add(ro);
+            const row = {
+                platform: '챔프강의창',
+                ...champMatch
+            };
+            if (champAdmin) {
+                row['연동강의코드'] = champAdmin.adminLectureCode;
+                row['연동강의플랫폼'] = champAdmin.serviceCategory;
+            }
+            champRows.push(row);
+        };
+
+        const addRechamp = (rm) => {
+            const k = `${String(rm?.lectureCode || '')}|${String(rm?.skinId || '')}`;
+            if (!rm?.lectureCode || seen.rechamp.has(k)) return;
+            seen.rechamp.add(k);
+            rechampRows.push({ platform: '(re)챔프스터디', ...rm });
+        };
+
+        const rootLcms = UnifiedLcmsService.getDataByLectureId(key);
+        if (rootLcms && rootLcms.length > 0) {
+            for (const m of rootLcms) addLcms(m);
+        }
+
+        // 체인: LCMS(lectureId) -> Admin(adminLectureCode) -> champLectureId
+        //     -> Champ(rowNo) -> Rechamp(skinId) -> B2B(B2C강의코드)
+        for (const skinId of chain.skinIds) {
+            const sid = String(skinId);
+            const champAdminMatches = AdminLectureService.getDataById(sid);
+            if (champAdminMatches && champAdminMatches.length > 0) {
+                for (const champAdmin of champAdminMatches) {
+                    const champLecId = champAdmin.champLectureId ? String(champAdmin.champLectureId) : null;
+                    if (champLecId) {
+                        const champMatches = ChampLectureService.getAllDataByRowNo(champLecId);
+                        if (champMatches && champMatches.length > 0) {
+                            for (const champMatch of champMatches) {
+                                addChamp(champMatch, champAdmin);
+                                // Champ(rowNo) -> Rechamp(skinId)
+                                const rechampMatches = this._rechampBySkinId?.get(String(champMatch?.rowNo ?? '')) || [];
+                                for (const rm of rechampMatches) addRechamp(rm);
+                            }
+                        }
+                    }
+
+                    const adminLecCode = champAdmin.adminLectureCode ? String(champAdmin.adminLectureCode) : null;
+                    if (adminLecCode && champAdmin.serviceCategory === '통합LCMS') {
+                        const lcmsMatches = UnifiedLcmsService.getDataByLectureId(adminLecCode);
+                        if (lcmsMatches && lcmsMatches.length > 0) {
+                            for (const lcmsMatch of lcmsMatches) addLcms(lcmsMatch);
+                        }
+                    }
+                }
+            } else {
+                const champMatches = ChampLectureService.getAllDataByRowNo(sid);
+                if (champMatches && champMatches.length > 0) {
+                    for (const champMatch of champMatches) {
+                        addChamp(champMatch, null);
+                        const rechampMatches = this._rechampBySkinId?.get(String(champMatch?.rowNo ?? '')) || [];
+                        for (const rm of rechampMatches) addRechamp(rm);
+                    }
+                } else {
+                    // fallback: rowNo == skinId 가정
+                    const rechampMatches = this._rechampBySkinId?.get(String(sid)) || [];
+                    for (const rm of rechampMatches) addRechamp(rm);
+                }
+            }
+        }
+
+        // Rechamp(lectureCode) -> B2B(B2C강의코드)
+        const rechampCodes = (chain.rechampCodes || []).map(String);
+        const rechampCodeSet = new Set(rechampCodes);
+        for (const b2bLecture of (this.allLectureData || [])) {
+            const b2cCode = String(b2bLecture?.['B2C강의코드'] ?? '');
+            const b2bCode = String(b2bLecture?.['강의코드'] ?? '');
+            if (!b2cCode || !b2bCode) continue;
+            if (!rechampCodeSet.has(b2cCode)) continue;
+            if (seen.b2b.has(b2bCode)) continue;
+            seen.b2b.add(b2bCode);
+            b2bRows.push({ platform: 'B2B', ...b2bLecture });
+        }
+
+        return [...lcmsRows, ...champRows, ...rechampRows, ...b2bRows];
     }
     
     /**
@@ -205,6 +405,10 @@ class LectureMasterApp {
             return 'B2B 강의리스트';
         }
 
+        if (this.currentListView === 'b2c-unified') {
+            return 'B2C 강의리스트';
+        }
+
         if (this.currentListView === 'settings-permissions') {
             return '권한관리';
         }
@@ -229,6 +433,7 @@ class LectureMasterApp {
         const selectedCount = this.selectedLectures.size;
         const showFilterReset = !this.currentListView;
         const isSettings = typeof this.currentListView === 'string' && this.currentListView.startsWith('settings-');
+        const isB2CUnified = this.currentListView === 'b2c-unified';
         
         ToolbarRenderer.renderToDOM(
             this.toolbarContainer, 
@@ -240,6 +445,9 @@ class LectureMasterApp {
                 hideSearch: true,
                 hideSave: true,
                 hideItemsPerPage: true,
+                hideFilterReset: true
+            } : isB2CUnified ? {
+                hideSave: true,
                 hideFilterReset: true
             } : {}
         );
@@ -260,6 +468,33 @@ class LectureMasterApp {
         }
         
         this.renderPluginBar();
+
+        if (isB2CUnified) {
+            this.renderB2CMissingButton();
+        }
+    }
+
+    renderB2CMissingButton() {
+        const pluginContainer = document.getElementById('pluginBarContainer');
+        if (!pluginContainer) return;
+
+        pluginContainer.innerHTML = `
+            <button type="button" class="btn-save" id="b2cMissingB2BBtn" title="B2B에 생성되지 않은 강의 보기">
+                <i class="fa-solid fa-filter"></i> B2B에 생성되지 않은 강의 보기
+            </button>
+        `;
+
+        const btn = document.getElementById('b2cMissingB2BBtn');
+        if (!btn) return;
+        if (this.b2cMissingB2BOnly) btn.classList.add('disabled');
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.b2cMissingB2BOnly = !this.b2cMissingB2BOnly;
+            this.currentPageNumber = 1;
+            this.renderTable(1);
+            this.renderToolbar();
+        });
     }
     
     /**
@@ -281,9 +516,7 @@ class LectureMasterApp {
 
     buildPluginsForCurrentView() {
         const plugins = [];
-        const isDashboard = this.currentListView === 'dashboard';
         const isSettings = typeof this.currentListView === 'string' && this.currentListView.startsWith('settings-');
-        const isShared = !!this.currentListView && this.currentListView.startsWith('shared_');
 
         // 전체 강의(메인) 화면
         if (!this.currentListView) {
@@ -307,95 +540,7 @@ class LectureMasterApp {
             return plugins;
         }
 
-        // 대시보드(카드뷰)
-        if (isDashboard) {
-            plugins.push({
-                id: 'operation',
-                title: '운영업무',
-                icon: 'fa-solid fa-briefcase',
-                menuItems: [
-                    { label: '강의료 파일 일괄생성', icon: 'fa-solid fa-file-export', action: 'bulkSettlementFile' },
-                    ...(this.dashboardBulkSettlement.selectionMode
-                        ? [{ label: '선택 취소', icon: 'fa-solid fa-xmark', action: 'bulkCancel' }]
-                        : [])
-                ],
-                onAction: (action) => {
-                    if (action === 'bulkSettlementFile') this.startDashboardBulkSettlementSelection();
-                    else if (action === 'bulkCancel') this.cancelDashboardBulkSettlementSelection();
-                }
-            });
-            return plugins;
-        }
-
-        // 특정 리스트(내 리스트) 화면
-        if (this.currentListView && !isShared) {
-            const listName = this.currentListView;
-            plugins.push({
-                id: 'listManage',
-                title: '리스트 관리',
-                icon: 'fa-solid fa-ellipsis-vertical',
-                menuItems: [
-                    { label: '리스트 이름 수정', icon: 'fa-solid fa-pencil', action: 'editName' },
-                    { label: '강의 추가', icon: 'fa-solid fa-plus', action: 'addLectures' },
-                    { label: '리스트 삭제', icon: 'fa-solid fa-trash', action: 'delete', danger: true }
-                ],
-                onAction: (action) => {
-                    if (action === 'editName') this.showEditListNameModal(listName);
-                    else if (action === 'addLectures') this.showAddLecturesModal(listName);
-                    else if (action === 'delete') this.deleteList(listName);
-                }
-            });
-        }
-
-        // 공유 리스트 포함(특정 리스트 화면)
-        if (this.currentListView) {
-            const listName = this.getCurrentListName();
-            if (listName) {
-                plugins.push({
-                    id: 'share',
-                    title: '공유',
-                    icon: 'fa-solid fa-share-nodes',
-                    menuItems: [
-                        { label: '공유하기', icon: 'fa-solid fa-share-nodes', action: 'share' },
-                        { label: '공유된 사람 확인', icon: 'fa-solid fa-users', action: 'viewSharedUsers' }
-                    ],
-                    onAction: (action) => {
-                        if (action === 'share') this.showShareModal(listName);
-                        else if (action === 'viewSharedUsers') this.showSharedUsersModal(listName);
-                    }
-                });
-            }
-        }
-
-        // 자동화/운영업무(현재 미완성: 안전하게 placeholder)
-        if (this.currentListView && !isShared) {
-            plugins.push(
-                {
-                    id: 'workRequest',
-                    title: '업무요청',
-                    icon: 'fa-solid fa-file-invoice',
-                    menuItems: [
-                        { label: '세금계산서 발행요청', icon: 'fa-solid fa-receipt', action: 'requestTaxInvoice' }
-                    ],
-                    onAction: (action) => {
-                        if (action === 'requestTaxInvoice') this.handleAutomationAction('requestTaxInvoice');
-                    }
-                },
-                {
-                    id: 'operation',
-                    title: '운영업무',
-                    icon: 'fa-solid fa-briefcase',
-                    menuItems: [
-                        { label: '세금계산서 발행', icon: 'fa-solid fa-receipt', action: 'issueTaxInvoice' },
-                        { label: '강의료 정산파일 제작', icon: 'fa-solid fa-file-export', action: 'createSettlementFile' }
-                    ],
-                    onAction: (action) => {
-                        if (action === 'issueTaxInvoice') this.handleAutomationAction('taxInvoice');
-                        else if (action === 'createSettlementFile') this.handleAutomationAction('settlementFile');
-                    }
-                }
-            );
-        }
+        // 대시보드·리스트 화면: 리스트 관리 / 공유 / 업무요청 / 운영업무 플러그인은 표시하지 않음
 
         return plugins;
     }
@@ -511,14 +656,20 @@ class LectureMasterApp {
     
     applySearch() {
         let baseData;
-        if (this.currentListView) {
+        if (this.currentListView === 'b2c-unified') {
+            baseData = this.b2cUnifiedData || [];
+        } else if (this.currentListView) {
             baseData = this.filteredLectureData;
         } else {
             baseData = this.currentDataView === 'main' ? this.mainLectureData : this.excludedLectureData;
         }
         
         if (this.searchQuery) {
-            this.searchedData = SearchService.search(baseData, this.searchQuery);
+            if (this.currentListView === 'b2c-unified') {
+                this.searchedData = SearchService.searchB2CUnified(baseData, this.searchQuery);
+            } else {
+                this.searchedData = SearchService.search(baseData, this.searchQuery);
+            }
         } else {
             this.searchedData = null;
         }
@@ -558,18 +709,31 @@ class LectureMasterApp {
         let dataToDisplay;
         if (this.searchedData !== null) {
             dataToDisplay = this.searchedData;
+        } else if (this.currentListView === 'b2c-unified') {
+            dataToDisplay = this.b2cUnifiedData || [];
         } else if (this.currentListView) {
             dataToDisplay = this.filteredLectureData;
         } else {
             dataToDisplay = this.currentDataView === 'main' ? this.mainLectureData : this.excludedLectureData;
         }
         
+        // B2C: 'B2B에 생성되지 않은 강의' 필터는 chain cache 이후 적용(추후 단계에서 캐시 연결)
+        if (this.currentListView === 'b2c-unified' && this.b2cMissingB2BOnly && this.b2cChainCache) {
+            dataToDisplay = dataToDisplay.filter(r => {
+                const chain = this.b2cChainCache.get(String(r.lectureId));
+                const b2bCodes = chain?.b2bCodes || [];
+                return b2bCodes.length === 0;
+            });
+        }
+
         const filteredData = FilterService.filterData(dataToDisplay, this.activeFilters);
         const startIndex = (pageNumber - 1) * this.itemsPerPage;
         const pageData = DataService.getPageData(filteredData, pageNumber, this.itemsPerPage);
         const totalPages = DataService.calculateTotalPages(filteredData.length, this.itemsPerPage);
         
-        TableRenderer.renderToDOM(this.tableContainer, pageData, startIndex, this.bookMap, this.currentListInfo);
+        const columnsOverride = this.currentListView === 'b2c-unified' ? B2C_UNIFIED_COLUMNS : null;
+        const listInfo = this.currentListView === 'b2c-unified' ? null : this.currentListInfo;
+        TableRenderer.renderToDOM(this.tableContainer, pageData, startIndex, this.bookMap, listInfo, columnsOverride);
 
         // Twemoji 렌더링 (테이블 헤더의 🔍 등)
         if (window.twemoji) {
@@ -604,6 +768,13 @@ class LectureMasterApp {
         this.checkboxHandler = new CheckboxHandler(this.selectedLectures, () => this.onSelectionChange());
         this.checkboxHandler.bindEvents();
         this.bindFilterEvents();
+
+        if (this.currentListView === 'b2c-unified') {
+            if (!this.b2cNestedRowHandler) {
+                this.b2cNestedRowHandler = new B2CNestedRowHandler(this.tableContainer, this);
+            }
+            this.b2cNestedRowHandler.bindEvents();
+        }
     }
     
     bindCompareEvents() {
@@ -838,6 +1009,8 @@ class LectureMasterApp {
         let dataToDisplay;
         if (this.searchedData !== null) {
             dataToDisplay = this.searchedData;
+        } else if (this.currentListView === 'b2c-unified') {
+            dataToDisplay = this.b2cUnifiedData || [];
         } else if (this.currentListView) {
             dataToDisplay = this.filteredLectureData;
         } else {
@@ -1021,6 +1194,18 @@ class LectureMasterApp {
                 else if (viewType === 'b2b-excluded') this.showExcludedLectures();
             });
         });
+
+        // B2C 강의리스트 (통합 LCMS 목록 — 단일 메뉴)
+        const b2cItem = document.createElement('li');
+        b2cItem.className = 'menu-item b2c-menu-item';
+        b2cItem.setAttribute('data-view-type', 'b2c-unified');
+        b2cItem.innerHTML = `<a href="#"><i class="fa-solid fa-link"></i><span class="link-text">B2C 강의리스트</span></a>`;
+        b2cItem.querySelector('a').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showB2CUnifiedLcms();
+        });
+        sidebarMenu.appendChild(b2cItem);
 
         // 내 강의리스트 드롭다운
         const myLists = StorageService.loadAllLists();
@@ -1223,6 +1408,88 @@ class LectureMasterApp {
         if (tableContainer) tableContainer.style.display = 'none';
         
         this.renderDashboard();
+        this.renderPluginBar();
+    }
+
+    async showB2CUnifiedLcms() {
+        this.hideSettingsContainer();
+        // 대시보드 일괄 선택 모드 해제
+        if (this.dashboardBulkSettlement?.selectionMode) this.dashboardBulkSettlement.cancelSelection();
+
+        this.currentListView = 'b2c-unified';
+        this.currentDataView = 'main';
+        this.b2cMissingB2BOnly = false;
+
+        HeaderRenderer.updateMenuNameAndCount('B2C 강의리스트', 0);
+        this.updateSidebarActiveState('b2c-unified');
+
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) tableContainer.style.display = 'flex';
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        if (dashboardContainer) dashboardContainer.style.display = 'none';
+
+        // unified lcms 데이터는 앱 초기 로딩에서 loadUnifiedLcmsData를 수행하므로 캐시 사용
+        this.b2cUnifiedData = (UnifiedLcmsService.getAllData() || [])
+            .filter(r => UnifiedLcmsService.isRowVisibleInList(r))
+            // 강좌명 제외 처리
+            .filter(r => r?.lectureTitle !== '내부강의(자체제작)')
+            // 등록일(createdAt) 최신순, 없으면 맨 뒤 → 강좌코드 보조 정렬
+            .sort((a, b) => {
+                const ta = a?.createdAt ? new Date(a.createdAt).getTime() : NaN;
+                const tb = b?.createdAt ? new Date(b.createdAt).getTime() : NaN;
+                const aOk = !Number.isNaN(ta);
+                const bOk = !Number.isNaN(tb);
+                if (aOk && bOk && tb !== ta) return tb - ta;
+                if (aOk && !bOk) return -1;
+                if (!aOk && bOk) return 1;
+                const av = Number(a?.lectureId);
+                const bv = Number(b?.lectureId);
+                if (!Number.isNaN(av) && !Number.isNaN(bv)) return bv - av;
+                return String(b?.lectureId ?? '').localeCompare(String(a?.lectureId ?? ''));
+            });
+
+        // 연동 체인 프리컴퓨트용 인덱스 구성
+        // 1) AdminLecture: lcmsCode(adminLectureCode) -> [champLectureId]
+        try {
+            const adminAll = await AdminLectureService.getAdminLectureData();
+            this._adminByLcmsCode = new Map();
+            adminAll
+                .filter(r => r?.serviceCategory === '통합LCMS' && r?.adminLectureCode != null && r?.champLectureId != null)
+                .forEach(r => {
+                    const lcmsCode = String(r.adminLectureCode);
+                    const skinId = String(r.champLectureId);
+                    if (!this._adminByLcmsCode.has(lcmsCode)) this._adminByLcmsCode.set(lcmsCode, []);
+                    this._adminByLcmsCode.get(lcmsCode).push(skinId);
+                });
+        } catch (_) {
+            this._adminByLcmsCode = new Map();
+        }
+
+        // 2) re챔프: skinId -> [rows]
+        this._rechampBySkinId = new Map();
+        try {
+            (RechampService.rechampData || []).forEach(r => {
+                const sid = r?.skinId != null ? String(r.skinId) : '';
+                if (!sid) return;
+                if (!this._rechampBySkinId.has(sid)) this._rechampBySkinId.set(sid, []);
+                this._rechampBySkinId.get(sid).push(r);
+            });
+        } catch (_) {
+            this._rechampBySkinId = new Map();
+        }
+
+        // 체인 캐시 초기화
+        this.b2cChainCache = new Map();
+
+        // 테이블/툴바 초기화
+        this.selectedLectures.clear(); // 조회 전용이지만 기존 UI 영향 제거
+        this.activeFilters = FilterService.clearAllFilters();
+        this.searchQuery = '';
+        this.searchedData = null;
+
+        this.currentPageNumber = 1;
+        this.renderTable(this.currentPageNumber);
+        this.renderToolbar();
         this.renderPluginBar();
     }
 

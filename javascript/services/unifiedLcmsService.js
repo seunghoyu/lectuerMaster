@@ -70,6 +70,25 @@ export class UnifiedLcmsService {
     }
 
     /**
+     * 통합 LCMS 행이 목록(B2C 통합LCMS 테이블)에 표시할 만한지 — 폐강 제외.
+     * JSON에 상태 컬럼이 있으면 우선 사용하고, 없으면 강좌명에 '폐강' 포함 여부로 판단합니다.
+     * @param {Object} item
+     * @returns {boolean}
+     */
+    static isRowVisibleInList(item) {
+        if (!item) return false;
+        const rawStatus = item.lectureStatus ?? item.status ?? item['강의상태'];
+        if (rawStatus != null && String(rawStatus).trim() === '폐강') {
+            return false;
+        }
+        const title = String(item.lectureTitle ?? '');
+        if (title.includes('폐강')) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * 캐시를 초기화합니다.
      */
     static clearCache() {
