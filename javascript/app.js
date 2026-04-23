@@ -17,11 +17,13 @@ import { UnsettledLecturesModalRenderer } from './components/unsettledLecturesMo
 import { CompareModalRenderer } from './components/compareModalRenderer.js';
 import { SimpleModalRenderer } from './components/simpleModalRenderer.js';
 import { PermissionsHelpModalRenderer } from './components/permissionsHelpModalRenderer.js';
+import { AutomationModalRenderer } from './components/automationModalRenderer.js';
 import { UserService } from './services/userService.js';
 import { FilterService } from './services/filterService.js';
 import { PriceParser } from './utils/priceParser.js';
 import { RechampService } from './services/rechampService.js';
 import { SettlementService } from './services/settlementService.js';
+import { AutomationService } from './services/automationService.js';
 import { AdminLectureService } from './services/adminLectureService.js';
 import { ChampLectureService } from './services/champLectureService.js';
 import { UnifiedLcmsService } from './services/unifiedLcmsService.js';
@@ -539,6 +541,8 @@ class LectureMasterApp {
     buildPluginsForCurrentView() {
         const plugins = [];
         const isSettings = typeof this.currentListView === 'string' && this.currentListView.startsWith('settings-');
+        const isDashboard = this.currentListView === 'dashboard';
+        const isB2CUnified = this.currentListView === 'b2c-unified';
 
         // 전체 강의(메인) 화면
         if (!this.currentListView) {
@@ -562,19 +566,130 @@ class LectureMasterApp {
             return plugins;
         }
 
-        // 대시보드·리스트 화면: 리스트 관리 / 공유 / 업무요청 / 운영업무 플러그인은 표시하지 않음
+        // 대시보드: 운영업무(강의료 정산파일 일괄생성) 복구
+        if (isDashboard) {
+            plugins.push({
+                id: 'operation',
+                title: '운영업무',
+                icon: 'fa-solid fa-briefcase',
+                menuItems: this.dashboardBulkSettlement?.selectionMode
+                    ? [
+                        { label: '선택모드 취소', icon: 'fa-solid fa-xmark', action: 'dashboardBulkCancel' }
+                    ]
+                    : [
+                        { label: '강의료 정산파일 일괄생성(선택모드)', icon: 'fa-solid fa-file-export', action: 'dashboardBulkSelect' }
+                    ],
+                onAction: (action) => {
+                    if (action === 'dashboardBulkSelect') this.startDashboardBulkSettlementSelection();
+                    else if (action === 'dashboardBulkCancel') this.cancelDashboardBulkSettlementSelection();
+                }
+            });
+
+            return plugins;
+        }
+
+        // B2C 통합LCMS 화면: 플러그인 바는 최소화(현재는 별도 토글 버튼 사용)
+        if (isB2CUnified) {
+            return plugins;
+        }
+
+        // 개별 리스트 화면(저장 리스트/공유 리스트): 업무요청/운영업무 복구
+        if (this.currentListView) {
+            plugins.push(
+                {
+                    id: 'workRequest',
+                    title: '업무요청',
+                    icon: 'fa-solid fa-file-invoice',
+                    menuItems: [
+                        { label: '세금계산서 발행요청', icon: 'fa-solid fa-receipt', action: 'requestTaxInvoice' }
+                    ],
+                    onAction: (action) => {
+                        if (action === 'requestTaxInvoice') this.openAutomationModal('requestTaxInvoice');
+                    }
+                },
+                {
+                    id: 'operation',
+                    title: '운영업무',
+                    icon: 'fa-solid fa-briefcase',
+                    menuItems: [
+                        { label: '세금계산서 발행', icon: 'fa-solid fa-receipt', action: 'taxInvoice' },
+                        { label: '강의료 정산파일 제작', icon: 'fa-solid fa-file-export', action: 'settlementFile' }
+                    ],
+                    onAction: (action) => {
+                        if (action === 'taxInvoice') this.openAutomationModal('taxInvoice');
+                        else if (action === 'settlementFile') this.openAutomationModal('settlementFile');
+                    }
+                }
+            );
+        }
 
         return plugins;
     }
 
-    handleAutomationAction(actionType) {
-        const labels = {
-            requestTaxInvoice: '세금계산서 발행요청',
-            taxInvoice: '세금계산서 발행',
-            settlementFile: '강의료 정산파일 제작'
-        };
-        const label = labels[actionType] || '자동화 기능';
-        this.showInfoModal(`${label} 기능은 준비중입니다.`, '준비중');
+    openAutomationModal(actionType) {
+        const selectedCount = this.selectedLectures?.size || 0;
+        if (selectedCount === 0) {
+            this.showInfoModal('먼저 강의를 선택해주세요.');
+            return;
+        }
+
+        AutomationModalRenderer.renderToDOM(document.body, actionType, selectedCount);
+        AutomationModalRenderer.showModal();
+        this.bindAutomationModalEvents();
+    }
+
+    bindAutomationModalEvents() {
+        const overlay = document.getElementById('automationModalOverlay');
+        if (!overlay) return;
+
+        overlay.addEventListener('click', async (e) => {
+            const targetId = e.target.id;
+            const closestButtonId = e.target.closest('button')?.id;
+
+            if (
+                closestButtonId === 'closeAutomationModal' ||
+                closestButtonId === 'cancelAutomationBtn' ||
+                targetId === 'automationModalOverlay'
+            ) {
+                this.closeAutomationModal();
+                return;
+            }
+
+            if (closestButtonId !== 'confirmAutomationBtn') return;
+
+            const actionType = overlay.dataset.actionType;
+            const lectureCodes = Array.from(this.selectedLectures || []);
+            if (!actionType || lectureCodes.length === 0) return;
+
+            try {
+                AutomationModalRenderer.updateStatus('처리 중...', 'info');
+
+                let result;
+                if (actionType === 'requestTaxInvoice') {
+                    result = await AutomationService.requestTaxInvoice(lectureCodes);
+                } else if (actionType === 'taxInvoice') {
+                    result = await AutomationService.issueTaxInvoice(lectureCodes);
+                } else if (actionType === 'settlementFile') {
+                    result = await AutomationService.createSettlementFile(lectureCodes);
+                } else {
+                    result = { success: false, message: '알 수 없는 작업입니다.' };
+                }
+
+                if (result?.success) {
+                    AutomationModalRenderer.updateStatus(result.message || '완료되었습니다.', 'success');
+                } else {
+                    AutomationModalRenderer.updateStatus(result?.message || '실패했습니다.', 'error');
+                }
+            } catch (err) {
+                AutomationModalRenderer.updateStatus('오류가 발생했습니다.', 'error');
+                console.error(err);
+            }
+        }, { once: true });
+    }
+
+    closeAutomationModal() {
+        AutomationModalRenderer.hideModal();
+        setTimeout(() => AutomationModalRenderer.removeModal(), 300);
     }
 
     startDashboardBulkSettlementSelection() {
