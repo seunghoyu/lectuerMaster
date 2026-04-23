@@ -161,7 +161,7 @@ export class DashboardRenderer {
         const lectureCodesSet = new Set(list.lectureCodes || []);
         
         // 해당 리스트에 포함된 강의들 필터링
-        const listLectures = lectureData.filter(lecture => 
+        const listLectures = lectureData.filter(lecture =>
             lectureCodesSet.has(lecture['강의코드'])
         );
         
