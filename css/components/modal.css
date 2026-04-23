@@ -406,6 +406,17 @@
     border-color: #4b5563;
 }
 
+.btn-confirm-danger {
+    background: #dc2626;
+    color: var(--color-white);
+    border-color: #dc2626;
+}
+
+.btn-confirm-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
 /* 강의코드로 등록하기 모달 버튼 (테두리 없음) */
 .btn-secondary,
 .btn-primary {

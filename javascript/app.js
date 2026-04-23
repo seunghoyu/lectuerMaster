@@ -12,11 +12,10 @@ import { SharedUsersModalRenderer } from './components/sharedUsersModalRenderer.
 import { DashboardRenderer } from './components/dashboardRenderer.js';
 import { PluginBarRenderer } from './components/pluginBarRenderer.js';
 import { EditListNameModalRenderer } from './components/editListNameModalRenderer.js';
-import { AutomationModalRenderer } from './components/automationModalRenderer.js';
 import { RegisterByCodeModalRenderer } from './components/registerByCodeModalRenderer.js';
 import { UnsettledLecturesModalRenderer } from './components/unsettledLecturesModalRenderer.js';
 import { CompareModalRenderer } from './components/compareModalRenderer.js';
-import { AutomationService } from './services/automationService.js';
+import { SimpleModalRenderer } from './components/simpleModalRenderer.js';
 import { UserService } from './services/userService.js';
 import { FilterService } from './services/filterService.js';
 import { PriceParser } from './utils/priceParser.js';
@@ -32,6 +31,7 @@ import { PaginationHandler } from './handlers/paginationHandler.js';
 import { KeyboardNavigationHandler } from './handlers/keyboardNavigationHandler.js';
 import { FilterRenderer } from './components/filterRenderer.js';
 import { NestedTableRowHandler } from './handlers/nestedTableRowHandler.js';
+import { DashboardBulkSettlementController } from './controllers/dashboardBulkSettlementController.js';
 
 /**
  * 메인 애플리케이션 클래스
@@ -53,6 +53,14 @@ class LectureMasterApp {
         this.activeFilters = FilterService.initializeFilters(); // 활성 필터 상태
         this.currentListInfo = null; // 현재 로드된 리스트 정보 (계약유형, priceMap 등)
         this.searchQuery = ''; // 검색어
+
+        // 대시보드(카드뷰) 운영업무: 강의료 파일 일괄생성 선택 모드
+        this.dashboardBulkSettlement = new DashboardBulkSettlementController({
+            getIsOnDashboard: () => this.currentListView === 'dashboard',
+            renderDashboard: () => this.renderDashboard(),
+            renderPluginBar: () => this.renderPluginBar(),
+            showInfoModal: (msg, title) => this.showInfoModal(msg, title)
+        });
         
         this.tableContainer = null;
         this.toolbarContainer = null;
@@ -242,15 +250,24 @@ class LectureMasterApp {
         const pluginContainer = document.getElementById('pluginBarContainer');
         if (!pluginContainer) return;
         
-        if (this.currentListView === 'dashboard' || this.currentDataView === 'excluded') {
+        if (this.currentDataView === 'excluded') {
             pluginContainer.innerHTML = '';
             return;
         }
-        
+
+        const plugins = this.buildPluginsForCurrentView();
+        if (plugins.length > 0) PluginBarRenderer.renderToDOM(pluginContainer, plugins);
+        else pluginContainer.innerHTML = '';
+    }
+
+    buildPluginsForCurrentView() {
         const plugins = [];
-        
+        const isDashboard = this.currentListView === 'dashboard';
+        const isShared = !!this.currentListView && this.currentListView.startsWith('shared_');
+
+        // 전체 강의(메인) 화면
         if (!this.currentListView) {
-            const registerByCodePlugin = {
+            plugins.push({
                 id: 'registerByCode',
                 title: '강의코드로 등록하기',
                 icon: 'fa-solid fa-plus',
@@ -262,13 +279,33 @@ class LectureMasterApp {
                     if (action === 'registerByCode') this.showRegisterByCodeModal();
                     else if (action === 'registerUnsettled') this.showRegisterUnsettledModal();
                 }
-            };
-            plugins.push(registerByCodePlugin);
+            });
         }
-        
-        if (this.currentListView && !this.currentListView.startsWith('shared_')) {
+
+        // 대시보드(카드뷰)
+        if (isDashboard) {
+            plugins.push({
+                id: 'operation',
+                title: '운영업무',
+                icon: 'fa-solid fa-briefcase',
+                menuItems: [
+                    { label: '강의료 파일 일괄생성', icon: 'fa-solid fa-file-export', action: 'bulkSettlementFile' },
+                    ...(this.dashboardBulkSettlement.selectionMode
+                        ? [{ label: '선택 취소', icon: 'fa-solid fa-xmark', action: 'bulkCancel' }]
+                        : [])
+                ],
+                onAction: (action) => {
+                    if (action === 'bulkSettlementFile') this.startDashboardBulkSettlementSelection();
+                    else if (action === 'bulkCancel') this.cancelDashboardBulkSettlementSelection();
+                }
+            });
+            return plugins;
+        }
+
+        // 특정 리스트(내 리스트) 화면
+        if (this.currentListView && !isShared) {
             const listName = this.currentListView;
-            const listManagePlugin = {
+            plugins.push({
                 id: 'listManage',
                 title: '리스트 관리',
                 icon: 'fa-solid fa-ellipsis-vertical',
@@ -282,14 +319,14 @@ class LectureMasterApp {
                     else if (action === 'addLectures') this.showAddLecturesModal(listName);
                     else if (action === 'delete') this.deleteList(listName);
                 }
-            };
-            plugins.push(listManagePlugin);
+            });
         }
-        
+
+        // 공유 리스트 포함(특정 리스트 화면)
         if (this.currentListView) {
             const listName = this.getCurrentListName();
             if (listName) {
-                const sharePlugin = {
+                plugins.push({
                     id: 'share',
                     title: '공유',
                     icon: 'fa-solid fa-share-nodes',
@@ -301,44 +338,71 @@ class LectureMasterApp {
                         if (action === 'share') this.showShareModal(listName);
                         else if (action === 'viewSharedUsers') this.showSharedUsersModal(listName);
                     }
-                };
-                plugins.push(sharePlugin);
+                });
             }
         }
-        
-        if (this.currentListView && !this.currentListView.startsWith('shared_')) {
-            const workRequestPlugin = {
-                id: 'workRequest',
-                title: '업무요청',
-                icon: 'fa-solid fa-file-invoice',
-                menuItems: [
-                    { label: '세금계산서 발행요청', icon: 'fa-solid fa-receipt', action: 'requestTaxInvoice' }
-                ],
-                onAction: (action) => {
-                    if (action === 'requestTaxInvoice') this.showAutomationModal('requestTaxInvoice');
+
+        // 자동화/운영업무(현재 미완성: 안전하게 placeholder)
+        if (this.currentListView && !isShared) {
+            plugins.push(
+                {
+                    id: 'workRequest',
+                    title: '업무요청',
+                    icon: 'fa-solid fa-file-invoice',
+                    menuItems: [
+                        { label: '세금계산서 발행요청', icon: 'fa-solid fa-receipt', action: 'requestTaxInvoice' }
+                    ],
+                    onAction: (action) => {
+                        if (action === 'requestTaxInvoice') this.handleAutomationAction('requestTaxInvoice');
+                    }
+                },
+                {
+                    id: 'operation',
+                    title: '운영업무',
+                    icon: 'fa-solid fa-briefcase',
+                    menuItems: [
+                        { label: '세금계산서 발행', icon: 'fa-solid fa-receipt', action: 'issueTaxInvoice' },
+                        { label: '강의료 정산파일 제작', icon: 'fa-solid fa-file-export', action: 'createSettlementFile' }
+                    ],
+                    onAction: (action) => {
+                        if (action === 'issueTaxInvoice') this.handleAutomationAction('taxInvoice');
+                        else if (action === 'createSettlementFile') this.handleAutomationAction('settlementFile');
+                    }
                 }
-            };
-            const operationPlugin = {
-                id: 'operation',
-                title: '운영업무',
-                icon: 'fa-solid fa-briefcase',
-                menuItems: [
-                    { label: '세금계산서 발행', icon: 'fa-solid fa-receipt', action: 'issueTaxInvoice' },
-                    { label: '강의료 정산파일 제작', icon: 'fa-solid fa-file-export', action: 'createSettlementFile' }
-                ],
-                onAction: (action) => {
-                    if (action === 'issueTaxInvoice') this.showAutomationModal('taxInvoice');
-                    else if (action === 'createSettlementFile') this.showAutomationModal('settlementFile');
-                }
-            };
-            plugins.push(workRequestPlugin, operationPlugin);
+            );
         }
-        
-        if (plugins.length > 0) {
-            PluginBarRenderer.renderToDOM(pluginContainer, plugins);
-        } else {
-            pluginContainer.innerHTML = '';
-        }
+
+        return plugins;
+    }
+
+    handleAutomationAction(actionType) {
+        const labels = {
+            requestTaxInvoice: '세금계산서 발행요청',
+            taxInvoice: '세금계산서 발행',
+            settlementFile: '강의료 정산파일 제작'
+        };
+        const label = labels[actionType] || '자동화 기능';
+        this.showInfoModal(`${label} 기능은 준비중입니다.`, '준비중');
+    }
+
+    startDashboardBulkSettlementSelection() {
+        this.dashboardBulkSettlement.startSelection();
+    }
+
+    cancelDashboardBulkSettlementSelection() {
+        this.dashboardBulkSettlement.cancelSelection();
+    }
+
+    toggleDashboardListSelection(listName) {
+        this.dashboardBulkSettlement.toggleList(listName);
+    }
+
+    updateDashboardBulkSettlementButtonState() {
+        this.dashboardBulkSettlement.updateButtonState();
+    }
+
+    runDashboardBulkSettlementGeneration() {
+        this.dashboardBulkSettlement.runGeneration();
     }
     
     getCurrentListName() {
@@ -1008,6 +1072,9 @@ class LectureMasterApp {
     }
 
     loadSavedList(listName) {
+        // 대시보드 일괄 선택 모드 해제
+        if (this.dashboardBulkSettlement?.selectionMode) this.dashboardBulkSettlement.cancelSelection();
+
         const list = StorageService.loadLectureList(listName);
         if (!list) return alert('리스트를 찾을 수 없습니다.');
         
@@ -1095,6 +1162,7 @@ class LectureMasterApp {
         if (tableContainer) tableContainer.style.display = 'none';
         
         this.renderDashboard();
+        this.renderPluginBar();
     }
     
     renderDashboard() {
@@ -1109,10 +1177,72 @@ class LectureMasterApp {
         }
         
         dashboardContainer.style.display = 'block';
-        DashboardRenderer.renderToDOM(dashboardContainer, this.allLectureData);
-        
-        const pluginContainer = document.getElementById('pluginBarContainer');
-        if (pluginContainer) pluginContainer.innerHTML = '';
+        DashboardRenderer.renderToDOM(dashboardContainer, this.allLectureData, {
+            selectionMode: this.dashboardBulkSettlement.selectionMode,
+            selectedLists: this.dashboardBulkSettlement.selectedLists,
+            handlers: {
+                onCancelBulk: () => this.cancelDashboardBulkSettlementSelection(),
+                onRunBulk: () => this.runDashboardBulkSettlementGeneration(),
+                onToggleSelect: (listName) => this.toggleDashboardListSelection(listName),
+                onOpenList: (listName) => this.loadSavedList(listName),
+                onDeleteList: (listName) => this.deleteList(listName),
+                onShare: (listName) => this.showShareModal(listName),
+                onViewSharedUsers: (listName) => this.showSharedUsersModal(listName)
+            }
+        });
+    }
+
+    /**
+     * 리스트 삭제 확인 모달을 띄웁니다. (대시보드·플러그인 바 공통)
+     * @param {string} listName
+     */
+    deleteList(listName) {
+        if (!listName) return;
+        SimpleModalRenderer.confirm({
+            id: 'deleteListConfirmOverlay',
+            title: '리스트 삭제',
+            message: '삭제하시겠습니까?',
+            confirmText: '예',
+            cancelText: '아니오',
+            confirmClass: 'btn-confirm btn-confirm-danger',
+            onConfirm: () => this.executeDeleteList(listName)
+        });
+    }
+
+    executeDeleteList(listName) {
+        if (!listName) return;
+        try {
+            StorageService.deleteLectureList(listName);
+        } catch (error) {
+            console.error('리스트 삭제 실패:', error);
+            return;
+        }
+
+        if (this.targetListForAdd === listName) {
+            this.targetListForAdd = null;
+            document.querySelector('#addToExistingListBtn')?.remove();
+        }
+
+        const onDashboard = this.currentListView === 'dashboard';
+        const wasViewingDeleted = this.currentListView === listName;
+
+        this.setupSidebar();
+        if (wasViewingDeleted) {
+            this.showAllLectures();
+        } else if (onDashboard) {
+            this.renderDashboard();
+        }
+
+        this.showInfoModal('삭제되었습니다.');
+    }
+
+    showInfoModal(message, title = '안내') {
+        SimpleModalRenderer.info({
+            id: 'infoModalOverlay',
+            title,
+            message,
+            okText: '확인'
+        });
     }
 
     /**
