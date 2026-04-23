@@ -22,6 +22,7 @@
 @import url('./components/filter.css');
 @import url('./components/filterStatus.css');
 @import url('./components/compareModal.css');
+@import url('./components/settings.css');
 
 /* --- App Container --- */
 #app {

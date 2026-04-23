@@ -16,6 +16,7 @@ import { RegisterByCodeModalRenderer } from './components/registerByCodeModalRen
 import { UnsettledLecturesModalRenderer } from './components/unsettledLecturesModalRenderer.js';
 import { CompareModalRenderer } from './components/compareModalRenderer.js';
 import { SimpleModalRenderer } from './components/simpleModalRenderer.js';
+import { PermissionsHelpModalRenderer } from './components/permissionsHelpModalRenderer.js';
 import { UserService } from './services/userService.js';
 import { FilterService } from './services/filterService.js';
 import { PriceParser } from './utils/priceParser.js';
@@ -166,6 +167,11 @@ class LectureMasterApp {
             this.bindProfileDropdown();
         }
     }
+
+    hideSettingsContainer() {
+        const settingsContainer = document.querySelector('.settings-container');
+        if (settingsContainer) settingsContainer.style.display = 'none';
+    }
     
     /**
      * 프로필 영역 클릭 시 문서 메뉴 드롭다운 토글
@@ -198,6 +204,10 @@ class LectureMasterApp {
         if (!this.currentListView) {
             return 'B2B 강의리스트';
         }
+
+        if (this.currentListView === 'settings-permissions') {
+            return '권한관리';
+        }
         
         if (this.currentListView.startsWith('shared_')) {
             const listName = this.currentListView.replace('shared_', '');
@@ -218,25 +228,34 @@ class LectureMasterApp {
         
         const selectedCount = this.selectedLectures.size;
         const showFilterReset = !this.currentListView;
+        const isSettings = typeof this.currentListView === 'string' && this.currentListView.startsWith('settings-');
         
         ToolbarRenderer.renderToDOM(
             this.toolbarContainer, 
             selectedCount, 
             this.itemsPerPage, 
             this.activeFilters,
-            showFilterReset
+            showFilterReset,
+            isSettings ? {
+                hideSearch: true,
+                hideSave: true,
+                hideItemsPerPage: true,
+                hideFilterReset: true
+            } : {}
         );
         
         const menuName = this.getCurrentMenuName();
-        HeaderRenderer.updateMenuNameAndCount(menuName, selectedCount);
+        HeaderRenderer.updateMenuNameAndCount(menuName, isSettings ? 0 : selectedCount);
+        const selectedCountEl = document.querySelector('.selected-count-in-header');
+        if (selectedCountEl) selectedCountEl.style.display = isSettings ? 'none' : '';
         
-        this.bindToolbarEvents();
+        if (!isSettings) this.bindToolbarEvents();
         
-        if (showFilterReset) {
+        if (!isSettings && showFilterReset) {
             this.bindFilterResetButton();
         }
         
-        if (this.targetListForAdd) {
+        if (!isSettings && this.targetListForAdd) {
             this.renderAddLecturesButton(this.targetListForAdd);
         }
         
@@ -263,6 +282,7 @@ class LectureMasterApp {
     buildPluginsForCurrentView() {
         const plugins = [];
         const isDashboard = this.currentListView === 'dashboard';
+        const isSettings = typeof this.currentListView === 'string' && this.currentListView.startsWith('settings-');
         const isShared = !!this.currentListView && this.currentListView.startsWith('shared_');
 
         // 전체 강의(메인) 화면
@@ -280,6 +300,11 @@ class LectureMasterApp {
                     else if (action === 'registerUnsettled') this.showRegisterUnsettledModal();
                 }
             });
+        }
+
+        // 설정 화면: 플러그인 없음
+        if (isSettings) {
+            return plugins;
         }
 
         // 대시보드(카드뷰)
@@ -1031,6 +1056,37 @@ class LectureMasterApp {
             listContainer.classList.toggle('open');
         });
 
+        // 설정(내 강의리스트 바로 아래)
+        const settingsSection = document.createElement('li');
+        settingsSection.className = 'settings-section';
+        settingsSection.innerHTML = `
+            <div class="menu-section-title dropdown-toggle" id="settingsToggle">
+                <i class="fa-solid fa-gear"></i><span class="link-text">설정</span><i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <ul class="dropdown-menu settings-menu" id="settingsMenu">
+                <li class="menu-item settings-menu-item" data-view-type="settings-permissions">
+                    <a href="#"><i class="fa-solid fa-user-shield"></i><span class="link-text">권한관리</span></a>
+                </li>
+            </ul>
+        `;
+        sidebarMenu.appendChild(settingsSection);
+
+        const settingsToggle = settingsSection.querySelector('#settingsToggle');
+        const settingsMenu = settingsSection.querySelector('#settingsMenu');
+        settingsToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            settingsToggle.classList.toggle('active');
+            settingsMenu.classList.toggle('open');
+        });
+        settingsSection.querySelectorAll('.settings-menu-item a').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showPermissionManagement();
+            });
+        });
+
         // 공유 강의리스트 드롭다운
         // ... (이하 생략 - 공유 리스트 로직은 복잡도를 줄이기 위해 일단 유지)
         
@@ -1053,6 +1109,7 @@ class LectureMasterApp {
     }
     
     loadSharedList(sharedList) {
+        this.hideSettingsContainer();
         const listName = `shared_${sharedList.listName}`;
         this.currentListView = listName;
         this.currentDataView = 'main';
@@ -1072,6 +1129,7 @@ class LectureMasterApp {
     }
 
     loadSavedList(listName) {
+        this.hideSettingsContainer();
         // 대시보드 일괄 선택 모드 해제
         if (this.dashboardBulkSettlement?.selectionMode) this.dashboardBulkSettlement.cancelSelection();
 
@@ -1103,6 +1161,7 @@ class LectureMasterApp {
     }
 
     showAllLectures() {
+        this.hideSettingsContainer();
         this.currentListView = null;
         this.currentListInfo = null;
         this.currentDataView = 'main';
@@ -1130,6 +1189,7 @@ class LectureMasterApp {
     }
 
     showExcludedLectures() {
+        this.hideSettingsContainer();
         this.currentListView = null;
         this.currentListInfo = null;
         this.currentDataView = 'excluded';
@@ -1154,6 +1214,7 @@ class LectureMasterApp {
     }
     
     showDashboard() {
+        this.hideSettingsContainer();
         this.currentListView = 'dashboard';
         HeaderRenderer.updateMenuNameAndCount('내 강의리스트 대시보드', 0);
         this.updateSidebarActiveState('dashboard');
@@ -1163,6 +1224,169 @@ class LectureMasterApp {
         
         this.renderDashboard();
         this.renderPluginBar();
+    }
+
+    showPermissionManagement() {
+        // 대시보드 일괄 선택 모드 해제
+        if (this.dashboardBulkSettlement?.selectionMode) this.dashboardBulkSettlement.cancelSelection();
+
+        this.currentListView = 'settings-permissions';
+        this.currentDataView = 'main';
+
+        HeaderRenderer.updateMenuNameAndCount('권한관리', 0);
+        this.updateSidebarActiveState('settings-permissions');
+
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) tableContainer.style.display = 'none';
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        if (dashboardContainer) dashboardContainer.style.display = 'none';
+
+        // settings 화면에서는 settings 컨테이너를 표시
+        this.renderPermissionManagementPage();
+        this.renderToolbar();
+    }
+
+    renderPermissionManagementPage() {
+        const workspace = document.querySelector('.workspace');
+        if (!workspace) return;
+
+        let container = workspace.querySelector('.settings-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'settings-container';
+            workspace.appendChild(container);
+        }
+        container.style.display = 'block';
+
+        const saved = localStorage.getItem('lecture_master_permissions_dummy');
+        const initial = {
+            '권민우': 'S',
+            '유승호': 'A',
+            '홍길동': 'O'
+        };
+        const roleMap = saved ? { ...initial, ...JSON.parse(saved) } : initial;
+        const roleLabel = (k) => (k === 'S' ? '최고관리자' : (k === 'A' ? '관리자' : '운영자'));
+
+        const users = ['권민우', '유승호', '홍길동'].map(name => ({
+            name,
+            roleKey: roleMap[name] || 'O',
+            role: roleLabel(roleMap[name] || 'O')
+        }));
+
+        container.innerHTML = `
+            <div class="settings-page">
+                <div class="settings-page-header">
+                    <h2 class="settings-title">권한관리</h2>
+                    <button type="button" class="btn-help" id="permissionsHelpBtn" title="권한별 기능 보기">
+                        <i class="fa-solid fa-circle-question"></i> 권한별 기능 보기
+                    </button>
+                </div>
+
+                <div class="settings-card">
+                    <h3>사용자(더미)</h3>
+                    <table class="settings-users-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">이름</th>
+                                <th style="width: 50%;">역할</th>
+                                <th style="width: 20%;">변경</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(u => `
+                                <tr data-user-name="${u.name}">
+                                    <td>${u.name}</td>
+                                    <td>
+                                        <span class="role-badge ${u.roleKey === 'O' ? 'role-operator' : (u.roleKey === 'A' ? 'role-admin' : 'role-superadmin')}">
+                                            <i class="fa-solid fa-user-shield"></i> ${u.role}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn-help" data-action="editRole" style="padding: 6px 10px;">
+                                            <i class="fa-solid fa-pen-to-square"></i> 수정
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const helpBtn = container.querySelector('#permissionsHelpBtn');
+        helpBtn?.addEventListener('click', () => this.showPermissionsHelpModal());
+
+        container.querySelectorAll('[data-action="editRole"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const row = e.target.closest('tr[data-user-name]');
+                if (!row) return;
+                const name = row.dataset.userName;
+                const current = roleMap[name] || 'O';
+
+                row.querySelector('td:nth-child(2)').innerHTML = `
+                    <select class="form-input" data-role-select style="max-width: 220px;">
+                        <option value="S" ${current === 'S' ? 'selected' : ''}>최고관리자</option>
+                        <option value="A" ${current === 'A' ? 'selected' : ''}>관리자</option>
+                        <option value="O" ${current === 'O' ? 'selected' : ''}>운영자</option>
+                    </select>
+                `;
+                row.querySelector('td:nth-child(3)').innerHTML = `
+                    <button type="button" class="btn-confirm" data-action="saveRole" style="padding: 6px 10px;">저장</button>
+                `;
+
+                row.querySelector('[data-action="saveRole"]')?.addEventListener('click', () => {
+                    const selected = row.querySelector('[data-role-select]')?.value || 'O';
+                    const next = { ...roleMap, [name]: selected };
+                    localStorage.setItem('lecture_master_permissions_dummy', JSON.stringify(next));
+                    this.renderPermissionManagementPage();
+                });
+            });
+        });
+    }
+
+    showPermissionsHelpModal() {
+        // `docs/권한_기능목록_강의리스트.md`를 기준으로 정리한 권한표(요약)
+        const rows = [
+            { label: '전체 강의 보기', O: true, A: true, S: true },
+            { label: '제외된 강의 보기', O: true, A: true, S: true },
+            { label: '내 강의리스트 대시보드 보기', O: true, A: true, S: true },
+            { label: '저장된 리스트 열기(내/공유)', O: true, A: true, S: true },
+            { label: '검색/필터/페이지 이동', O: true, A: true, S: true },
+            { label: '강의리스트 저장', O: true, A: true, S: true },
+            { label: '강의코드로 등록(새 리스트)', O: true, A: true, S: true },
+            { label: '리스트 이름 수정', O: true, A: true, S: true },
+            { label: '강의 추가(리스트에 추가)', O: true, A: true, S: true },
+            { label: '리스트 삭제', O: false, A: true, S: true },
+            { label: '공유하기/공유된 사람 확인', O: true, A: true, S: true },
+            { label: '대시보드 강의료 파일 일괄생성(선택/실행)', O: false, A: true, S: true },
+            { label: '세금계산서 발행요청(준비중)', O: false, A: true, S: true },
+            { label: '세금계산서 발행(준비중)', O: false, A: true, S: true },
+            { label: '강의료 정산파일 제작(준비중)', O: false, A: true, S: true },
+            { label: '강의 비교 모달', O: true, A: true, S: true }
+        ];
+
+        PermissionsHelpModalRenderer.renderToDOM(document.body, {
+            title: '권한별 기능(요약)',
+            rows
+        });
+        PermissionsHelpModalRenderer.showModal();
+
+        const overlay = document.getElementById('permissionsHelpModalOverlay');
+        if (!overlay) return;
+
+        const close = () => {
+            PermissionsHelpModalRenderer.hideModal();
+            setTimeout(() => PermissionsHelpModalRenderer.removeModal(), 200);
+        };
+
+        overlay.addEventListener('click', (e) => {
+            const targetId = e.target.id;
+            const closestButtonId = e.target.closest('button')?.id;
+            if (closestButtonId === 'closePermissionsHelpModal' || closestButtonId === 'closePermissionsHelpBtn' || targetId === 'permissionsHelpModalOverlay') {
+                close();
+            }
+        });
     }
     
     renderDashboard() {
