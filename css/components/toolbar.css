@@ -68,6 +68,21 @@
     background: #4b5563;
 }
 
+.btn-save.active {
+    background: #374151;
+}
+
+.btn-save .btn-badge {
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
 .btn-save.disabled {
     background: var(--color-button-disabled);
     color: var(--color-text-disabled);

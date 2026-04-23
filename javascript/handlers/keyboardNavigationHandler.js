@@ -416,8 +416,9 @@ export class KeyboardNavigationHandler {
         const tbody = this.table.querySelector('tbody');
         if (!tbody) return;
 
-        const b2bRows = Array.from(tbody.querySelectorAll('tr.b2b-row'));
-        const rowIndexMap = new Map(b2bRows.map((r, i) => [r, i]));
+        // B2B/B2C 모두 지원: 상세행(.b2c-details-row) 등은 제외
+        const dataRows = Array.from(tbody.querySelectorAll('tr.b2b-row, tr.b2c-row'));
+        const rowIndexMap = new Map(dataRows.map((r, i) => [r, i]));
 
         const positions = selectedCellsArray
             .map(cell => {
@@ -441,7 +442,7 @@ export class KeyboardNavigationHandler {
         const cellMap = new Map(positions.map(p => [`${p.r}:${p.c}`, p.cell]));
         const rowsData = [];
         for (let r = minR; r <= maxR; r++) {
-            const row = b2bRows[r];
+            const row = dataRows[r];
             const rowCells = [];
             for (let c = minC; c <= maxC; c++) {
                 const cell = cellMap.get(`${r}:${c}`);

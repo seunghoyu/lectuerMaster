@@ -59,6 +59,9 @@ class LectureMasterApp {
         this.searchQuery = ''; // 검색어
         this.b2cMissingB2BOnly = false;
         this.b2cUnifiedData = [];
+        this.b2cMissingB2BSet = null; // Set<lemma lectureId> for missing B2B
+        this._b2bByB2cCode = null; // Map<B2C강의코드, Array<B2B강의코드>>
+        this._b2bLectureByCode = null; // Map<강의코드, lectureRow>
 
         // 대시보드(카드뷰) 운영업무: 강의료 파일 일괄생성 선택 모드
         this.dashboardBulkSettlement = new DashboardBulkSettlementController({
@@ -219,12 +222,15 @@ class LectureMasterApp {
             }
         }
 
-        // 4) B2B: B2C강의코드 == (re)챔프 lectureCode 인 강의코드 수집
+        // 4) B2B: (re)챔프 lectureCode -> B2B.B2C강의코드 인덱스로 강의코드 수집
         const rechampCodeSet = new Set(rechampCodes.map(v => String(v)));
-        const b2bCodes = this.allLectureData
-            .filter(r => rechampCodeSet.has(String(r['B2C강의코드'] || '')))
-            .map(r => r['강의코드'])
-            .filter(Boolean);
+        const b2bCodes = [];
+        if (this._b2bByB2cCode && rechampCodeSet.size > 0) {
+            for (const code of rechampCodeSet) {
+                const arr = this._b2bByB2cCode.get(code) || [];
+                for (const b2bCode of arr) b2bCodes.push(b2bCode);
+            }
+        }
 
         const result = {
             b2cLectureId: key,
@@ -339,17 +345,21 @@ class LectureMasterApp {
             }
         }
 
-        // Rechamp(lectureCode) -> B2B(B2C강의코드)
+        // Rechamp(lectureCode) -> B2B(B2C강의코드) (인덱스 기반)
         const rechampCodes = (chain.rechampCodes || []).map(String);
         const rechampCodeSet = new Set(rechampCodes);
-        for (const b2bLecture of (this.allLectureData || [])) {
-            const b2cCode = String(b2bLecture?.['B2C강의코드'] ?? '');
-            const b2bCode = String(b2bLecture?.['강의코드'] ?? '');
-            if (!b2cCode || !b2bCode) continue;
-            if (!rechampCodeSet.has(b2cCode)) continue;
-            if (seen.b2b.has(b2bCode)) continue;
-            seen.b2b.add(b2bCode);
-            b2bRows.push({ platform: 'B2B', ...b2bLecture });
+        if (this._b2bByB2cCode && this._b2bLectureByCode) {
+            for (const b2cCode of rechampCodeSet) {
+                const b2bCodes = this._b2bByB2cCode.get(b2cCode) || [];
+                for (const b2bCodeRaw of b2bCodes) {
+                    const b2bCode = String(b2bCodeRaw);
+                    if (!b2bCode || seen.b2b.has(b2bCode)) continue;
+                    const b2bLecture = this._b2bLectureByCode.get(b2bCode);
+                    if (!b2bLecture) continue;
+                    seen.b2b.add(b2bCode);
+                    b2bRows.push({ platform: 'B2B', ...b2bLecture });
+                }
+            }
         }
 
         return [...lcmsRows, ...champRows, ...rechampRows, ...b2bRows];
@@ -448,7 +458,10 @@ class LectureMasterApp {
                 hideFilterReset: true
             } : isB2CUnified ? {
                 hideSave: true,
-                hideFilterReset: true
+                hideFilterReset: true,
+                showB2BMissingToggle: true,
+                b2bMissingActive: !!this.b2cMissingB2BOnly,
+                b2bMissingCount: this.b2cMissingB2BOnly ? (this.b2cMissingB2BSet?.size ?? null) : null
             } : {}
         );
         
@@ -468,33 +481,42 @@ class LectureMasterApp {
         }
         
         this.renderPluginBar();
-
-        if (isB2CUnified) {
-            this.renderB2CMissingButton();
-        }
     }
 
-    renderB2CMissingButton() {
-        const pluginContainer = document.getElementById('pluginBarContainer');
-        if (!pluginContainer) return;
+    showGlobalLoading(text = '로딩 중...') {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (!overlay) return;
+        const textEl = document.getElementById('globalLoadingText');
+        if (textEl) textEl.textContent = text;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
 
-        pluginContainer.innerHTML = `
-            <button type="button" class="btn-save" id="b2cMissingB2BBtn" title="B2B에 생성되지 않은 강의 보기">
-                <i class="fa-solid fa-filter"></i> B2B에 생성되지 않은 강의 보기
-            </button>
-        `;
+    hideGlobalLoading() {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
 
-        const btn = document.getElementById('b2cMissingB2BBtn');
-        if (!btn) return;
-        if (this.b2cMissingB2BOnly) btn.classList.add('disabled');
+    async computeB2CMissingB2BSet() {
+        const data = this.b2cUnifiedData || [];
+        const result = new Set();
+        for (let i = 0; i < data.length; i++) {
+            const lectureId = data[i]?.lectureId;
+            if (lectureId == null) continue;
+            const chain = this.getB2CChain(String(lectureId));
+            const b2bCodes = chain?.b2bCodes || [];
+            if (b2bCodes.length === 0) {
+                result.add(String(lectureId));
+            }
 
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.b2cMissingB2BOnly = !this.b2cMissingB2BOnly;
-            this.currentPageNumber = 1;
-            this.renderTable(1);
-            this.renderToolbar();
-        });
+            // UI 프리즈 방지: 주기적으로 이벤트 루프에 양보
+            if (i > 0 && i % 250 === 0) {
+                await new Promise(requestAnimationFrame);
+            }
+        }
+        return result;
     }
     
     /**
@@ -594,6 +616,35 @@ class LectureMasterApp {
                 this.itemsPerPage = parseInt(event.target.value);
                 this.currentPageNumber = 1;
                 this.renderTable(this.currentPageNumber);
+                this.renderToolbar();
+            });
+        }
+
+        const b2bMissingToggleBtn = document.getElementById('b2bMissingToggleBtn');
+        if (b2bMissingToggleBtn) {
+            b2bMissingToggleBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // OFF -> ON
+                if (!this.b2cMissingB2BOnly) {
+                    this.b2cMissingB2BOnly = true;
+                    try {
+                        this.showGlobalLoading('B2B 미생성 강의 계산 중...');
+                        // 이미 계산된 결과가 있으면 재사용
+                        if (!this.b2cMissingB2BSet) {
+                            this.b2cMissingB2BSet = await this.computeB2CMissingB2BSet();
+                        }
+                    } finally {
+                        this.hideGlobalLoading();
+                    }
+                } else {
+                    // ON -> OFF
+                    this.b2cMissingB2BOnly = false;
+                }
+
+                this.currentPageNumber = 1;
+                this.renderTable(1);
                 this.renderToolbar();
             });
         }
@@ -717,13 +768,18 @@ class LectureMasterApp {
             dataToDisplay = this.currentDataView === 'main' ? this.mainLectureData : this.excludedLectureData;
         }
         
-        // B2C: 'B2B에 생성되지 않은 강의' 필터는 chain cache 이후 적용(추후 단계에서 캐시 연결)
-        if (this.currentListView === 'b2c-unified' && this.b2cMissingB2BOnly && this.b2cChainCache) {
-            dataToDisplay = dataToDisplay.filter(r => {
-                const chain = this.b2cChainCache.get(String(r.lectureId));
-                const b2bCodes = chain?.b2bCodes || [];
-                return b2bCodes.length === 0;
-            });
+        // B2C: 'B2B 미생성 강의 보기' 토글(연동체인 기준, B2B 코드 0개)
+        if (this.currentListView === 'b2c-unified' && this.b2cMissingB2BOnly) {
+            if (this.b2cMissingB2BSet) {
+                dataToDisplay = dataToDisplay.filter(r => this.b2cMissingB2BSet.has(String(r?.lectureId)));
+            } else if (this.b2cChainCache) {
+                // fallback(계산 전): 캐시 기반으로 즉시 필터링
+                dataToDisplay = dataToDisplay.filter(r => {
+                    const chain = this.b2cChainCache.get(String(r?.lectureId));
+                    const b2bCodes = chain?.b2bCodes || [];
+                    return b2bCodes.length === 0;
+                });
+            }
         }
 
         const filteredData = FilterService.filterData(dataToDisplay, this.activeFilters);
@@ -1195,17 +1251,37 @@ class LectureMasterApp {
             });
         });
 
-        // B2C 강의리스트 (통합 LCMS 목록 — 단일 메뉴)
-        const b2cItem = document.createElement('li');
-        b2cItem.className = 'menu-item b2c-menu-item';
-        b2cItem.setAttribute('data-view-type', 'b2c-unified');
-        b2cItem.innerHTML = `<a href="#"><i class="fa-solid fa-link"></i><span class="link-text">B2C 강의리스트</span></a>`;
-        b2cItem.querySelector('a').addEventListener('click', (e) => {
+        // B2C 강의리스트 드롭다운 (B2B와 동일 UX)
+        const b2cListSection = document.createElement('li');
+        b2cListSection.className = 'b2c-list-section';
+        b2cListSection.innerHTML = `
+            <div class="menu-section-title dropdown-toggle" id="b2cListToggle">
+                <i class="fa-solid fa-link"></i><span class="link-text">B2C 강의리스트</span><i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <ul class="b2c-list-menu dropdown-menu">
+                <li class="menu-item b2c-menu-item" data-view-type="b2c-unified">
+                    <a href="#"><i class="fa-solid fa-layer-group"></i><span class="link-text">통합LCMS</span></a>
+                </li>
+            </ul>
+        `;
+        sidebarMenu.appendChild(b2cListSection);
+
+        const b2cToggle = b2cListSection.querySelector('#b2cListToggle');
+        const b2cMenu = b2cListSection.querySelector('.b2c-list-menu');
+        b2cToggle.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.showB2CUnifiedLcms();
+            b2cToggle.classList.toggle('active');
+            b2cMenu.classList.toggle('open');
         });
-        sidebarMenu.appendChild(b2cItem);
+
+        b2cListSection.querySelectorAll('.b2c-menu-item a').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showB2CUnifiedLcms();
+            });
+        });
 
         // 내 강의리스트 드롭다운
         const myLists = StorageService.loadAllLists();
@@ -1419,6 +1495,7 @@ class LectureMasterApp {
         this.currentListView = 'b2c-unified';
         this.currentDataView = 'main';
         this.b2cMissingB2BOnly = false;
+        this.b2cMissingB2BSet = null;
 
         HeaderRenderer.updateMenuNameAndCount('B2C 강의리스트', 0);
         this.updateSidebarActiveState('b2c-unified');
@@ -1476,6 +1553,26 @@ class LectureMasterApp {
             });
         } catch (_) {
             this._rechampBySkinId = new Map();
+        }
+
+        // 3) B2B: B2C강의코드 -> [강의코드], 강의코드 -> row 인덱스 구성
+        this._b2bByB2cCode = new Map();
+        this._b2bLectureByCode = new Map();
+        try {
+            (this.allLectureData || []).forEach(row => {
+                const b2bCode = row?.['강의코드'] != null ? String(row['강의코드']) : '';
+                if (b2bCode) {
+                    this._b2bLectureByCode.set(b2bCode, row);
+                }
+
+                const b2cCode = row?.['B2C강의코드'] != null ? String(row['B2C강의코드']) : '';
+                if (!b2cCode || !b2bCode) return;
+                if (!this._b2bByB2cCode.has(b2cCode)) this._b2bByB2cCode.set(b2cCode, []);
+                this._b2bByB2cCode.get(b2cCode).push(b2bCode);
+            });
+        } catch (_) {
+            this._b2bByB2cCode = new Map();
+            this._b2bLectureByCode = new Map();
         }
 
         // 체인 캐시 초기화

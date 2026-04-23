@@ -19,7 +19,10 @@ export class ToolbarRenderer {
             hideSave = false,
             hideItemsPerPage = false,
             hideFilterReset = false,
-            hidePluginBar = false
+            hidePluginBar = false,
+            showB2BMissingToggle = false,
+            b2bMissingActive = false,
+            b2bMissingCount = null
         } = options || {};
 
         const itemsPerPageOptions = [10, 20, 50, 100, 200, 500, 1000];
@@ -63,6 +66,24 @@ export class ToolbarRenderer {
         
         // 필터가 있을 때는 space-between, 없을 때는 flex-end
         const toolbarClass = hasFilters ? 'toolbar toolbar-with-filter' : 'toolbar toolbar-with-search';
+
+        const missingCountText = (b2bMissingCount == null || Number.isNaN(Number(b2bMissingCount)))
+            ? ''
+            : ` <span class="btn-badge">${Number(b2bMissingCount).toLocaleString()}개</span>`;
+
+        const b2bMissingToggleBtn = showB2BMissingToggle ? `
+            <button
+                type="button"
+                id="b2bMissingToggleBtn"
+                class="btn-save ${b2bMissingActive ? 'active' : ''}"
+                title="${b2bMissingActive ? '클릭하면 해제(전체 보기)' : '클릭하면 적용(B2B 미생성만)'}"
+                aria-pressed="${b2bMissingActive ? 'true' : 'false'}"
+            >
+                <i class="fa-solid ${b2bMissingActive ? 'fa-check' : 'fa-filter'}"></i>
+                ${b2bMissingActive ? '미생성 필터 ON (전체 보기로 해제)' : 'B2B 미생성 강의 보기'}
+                ${b2bMissingActive ? missingCountText : ''}
+            </button>
+        ` : '';
         
         return `
             <div class="${toolbarClass}">
@@ -73,6 +94,7 @@ export class ToolbarRenderer {
                 <div class="toolbar-right">
                     ${filterResetBtn}
                     ${hidePluginBar ? '' : '<div id="pluginBarContainer"></div>'}
+                    ${b2bMissingToggleBtn}
                     ${hideItemsPerPage ? '' : `
                         <select id="itemsPerPageSelect" class="items-per-page-select">
                             ${optionsHtml}
